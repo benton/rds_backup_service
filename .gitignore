@@ -1,0 +1,12 @@
+*.gem
+.bundle
+config/s3_account.yml
+config/rds_accounts.yml
+pkg/*
+*~
+.DS_Store
+*.tmproj
+log/*.log
+tmp/**
+doc/**
+.yardoc

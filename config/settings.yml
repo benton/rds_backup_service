@@ -1,0 +1,11 @@
+# The bucket name where all backups will be writen
+backup_bucket: rdsbackups-deleteme
+
+# All backups will be prefixed with backup_prefix 
+# (no leading or trailing / necessary)
+backup_prefix: rdsbackups
+
+# The rds_security_group must be defined in each
+# RDS account, and be open to this server, so that the
+# mysqldump can take place!
+rds_security_group: rds-backup-service
