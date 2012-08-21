@@ -1,9 +1,9 @@
-# The bucket name where all backups will be writen
-backup_bucket: rdsbackups-deleteme
+# The S3 bucket name where all backups will be saved
+backup_bucket: rdsbackups
 
 # All backups will be prefixed with backup_prefix 
 # (no leading or trailing / necessary)
-backup_prefix: rdsbackups
+backup_prefix: testing
 
 # The rds_security_group must be defined in each
 # RDS account, and be open to this server, so that the
