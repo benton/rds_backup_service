@@ -5,9 +5,8 @@ module RDSDump
 
     @queue = :backups
 
-    attr_reader :rds_id, :account_name, :options
-    attr_reader :backup_id, :status, :status_url, :message, :files
-    attr_reader :requested
+    attr_reader :backup_id, :rds_id, :account_name, :options
+    attr_reader :status, :status_url, :message, :files, :requested
 
     # Constructor.
     # @param [String] rds_instance_id the ID of the RDS instance to backup
@@ -53,7 +52,7 @@ module RDSDump
       end
     end
 
-    # Entry point for business logic. Called by the Resque framework.
+    # Entry point for the Resque framework.
     # Parameters are the same as for #initialize()
     def self.perform(rds_instance_id, account_name, options = {})
       job = BackupJob.new(rds_instance_id, account_name, options).perform_backup
@@ -62,70 +61,96 @@ module RDSDump
     # Top-level, long-running method for performing the backup.
     def perform_backup
       update_status "Backing up #{rds_id} from account #{account_name}"
-      rds = ::Fog::AWS::RDS.new(
+      prepare_backup
+      snapshot_original_rds
+      create_tmp_rds_from_snapshot
+      destroy_snapshot
+      configure_tmp_rds
+      # reboot_tmp_rds_if_needed  # TODO
+      download_data_from_tmp_rds
+      delete_tmp_rds
+      upload_output_to_s3
+      update_status "Backup complete"
+    end
+
+    # Connects to the RDS web service, and waits for the instance to be ready
+    def prepare_backup
+      @rds = ::Fog::AWS::RDS.new(
         RDSDump.read_rds_accounts[account_name]['credentials']
       )
-      original_server = rds.servers.get(rds_id)
-      db_name = original_server.db_name
-      db_user = original_server.master_username
-      update_status "Waiting for RDS instance #{original_server.id}"
-      original_server.wait_for { ready? }
+      @original_server = @rds.servers.get(rds_id)
+      update_status "Waiting for RDS instance #{@original_server.id}"
+      @original_server.wait_for { ready? }
+    end
 
-      # Snapshot the original RDS
-      snapshot_id = "rds-dump-service-#{rds_id}-#{@backup_id}"
+    # Snapshots the original RDS
+    def snapshot_original_rds
+      snapshot_id = "rds-dump-service-#{rds_id}-#{backup_id}"
       update_status "Creating snapshot #{snapshot_id} from RDS #{rds_id}"
-      snapshot = rds.snapshots.create(id: snapshot_id, instance_id: rds_id)
+      @snapshot = @rds.snapshots.create(id: snapshot_id, instance_id: rds_id)
       update_status "Waiting for snapshot #{snapshot_id}"
-      snapshot.wait_for { ready? }
+      @snapshot.wait_for { ready? }
+    end
 
-      # Create a new RDS from the snapshot
+    # Creates a new RDS from the snapshot
+    def create_tmp_rds_from_snapshot
       new_rds_id = "rds-dump-service-#{backup_id}"
-      update_status "Booting new RDS #{new_rds_id} from snapshot #{snapshot_id}"
-      response = rds.restore_db_instance_from_db_snapshot(snapshot.id, new_rds_id,
-        'DBInstanceClass' => original_server.flavor_id )
-      new_instance = rds.servers.get new_rds_id
+      update_status "Booting new RDS #{new_rds_id} from snapshot #{@snapshot.id}"
+      response = @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
+        new_rds_id, 'DBInstanceClass' => @original_server.flavor_id)
+      @new_instance = @rds.servers.get new_rds_id
+    end
 
-      # Destroy the snapshot
-      update_status "Waiting for new RDS instance #{new_instance.id}"
-      new_instance.wait_for { ready? }
-      update_status "Deleting snapshot #{snapshot_id}"
-      snapshot.destroy
+    # Destroys the snapshot
+    def destroy_snapshot
+      update_status "Waiting for new RDS instance #{@new_instance.id}"
+      @new_instance.wait_for { ready? }
+      update_status "Deleting snapshot #{@snapshot.id}"
+      @snapshot.destroy
+    end
 
-      # Update the Master Password and apply the tightened RDS Security Group
-      update_status "Modifying RDS attributes for new RDS #{new_instance.id}"
-      new_password = "%016x" % (rand * 0xffffffffffffffff)
-      rds.modify_db_instance(new_instance.id, true, {
-        'DBParameterGroupName'  => original_server.db_parameter_groups.
+    # Updates the Master Password and applies the tightened RDS Security Group
+    def configure_tmp_rds
+      update_status "Modifying RDS attributes for new RDS #{@new_instance.id}"
+      @new_password = "%016x" % (rand * 0xffffffffffffffff)
+      @rds.modify_db_instance(@new_instance.id, true, {
+        'DBParameterGroupName'  => @original_server.db_parameter_groups.
                                     first['DBParameterGroupName'],
         'DBSecurityGroups'      => [ @config['rds_security_group'] ],
-        'MasterUserPassword'    => new_password,
+        'MasterUserPassword'    => @new_password,
       })
-      new_instance.reload
-      # TODO - reboot RDS if Parameter Group is still pending
-      new_instance.wait_for { ready? }
+      @new_instance.reload
+      @new_instance.wait_for { ready? }
+    end
 
-      # Connect to the RDS server, and dump the database to a temp dir
-      update_status "Dumping database #{db_name} from #{new_instance.id}"
-      sql_file  = "/tmp/#{@s3_path}/#{db_name}.sql.gz"
-      hostname  = new_instance.endpoint['Address']
+    # Connects to the RDS server, and dumps the database to a temp dir
+    def download_data_from_tmp_rds
+      db_name = @original_server.db_name
+      db_user = @original_server.master_username
+      update_status "Dumping database #{db_name} from #{@new_instance.id}"
+      @sql_file = "/tmp/#{@s3_path}/#{db_name}.sql.gz"
+      hostname  = @new_instance.endpoint['Address']
       dump_cmd  = "mysqldump -u #{db_user} -h #{hostname} "+
-        "-p#{new_password} #{db_name} | gzip >#{sql_file}"
-      FileUtils.mkpath(File.dirname sql_file)
+        "-p#{@new_password} #{db_name} | gzip >#{@sql_file}"
+      FileUtils.mkpath(File.dirname @sql_file)
       @log.debug "Executing command: #{dump_cmd}"
       `#{dump_cmd}`
+    end
 
-      # Destroy the temporary RDS instance
-      update_status "Deleting RDS instance #{new_instance.id}"
-      new_instance.destroy
+    # Destroys the temporary RDS instance
+    def delete_tmp_rds
+      update_status "Deleting RDS instance #{@new_instance.id}"
+      @new_instance.destroy
+    end
 
-      # Upload the compressed SQL file to S3
-      update_status "Uploading output file #{::File.basename sql_file}"
-      dump_path = "#{@s3_path}/#{::File.basename sql_file}"
-      @s3.put_object(@bucket, dump_path, File.read(sql_file))
+    # Uploads the compressed SQL file to S3
+    def upload_output_to_s3
+      update_status "Uploading output file #{::File.basename @sql_file}"
+      dump_path = "#{@s3_path}/#{::File.basename @sql_file}"
+      @s3.put_object(@bucket, dump_path, File.read(@sql_file))
       expire_date = Time.now + (3600 * 24 * 30)  # 30 days from now
       output_url = @s3.get_object_http_url(@bucket, dump_path, expire_date)
       @files = [ { name: ::File.basename(sql_file), url: output_url } ]
-      update_status "Backup complete"
     end
 
     # Writes a new status message to the log, and writes the job info to S3
