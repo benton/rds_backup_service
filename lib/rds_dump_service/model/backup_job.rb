@@ -1,3 +1,4 @@
+require 'fileutils'
 module RDSDump
   # Backs up the contents of a single RDS database to S3
   class BackupJob
@@ -5,7 +6,7 @@ module RDSDump
     @queue = :backups
 
     attr_reader :rds_id, :account_name, :options
-    attr_reader :backup_id, :status, :status_url, :message
+    attr_reader :backup_id, :status, :status_url, :message, :files
     attr_reader :requested
 
     # Constructor.
@@ -26,17 +27,18 @@ module RDSDump
       @bucket     = @config['backup_bucket']
       @s3_path    = "#{@config['backup_prefix']}/"+
                     "#{requested.strftime("%Y/%m/%d")}/#{rds_id}/#{backup_id}"
+      @files      = []
     end
 
     # returns a JSON-format String representation of this backup job
     def to_json
       JSON.pretty_generate({
-        backup_job_id:  backup_id,
         rds_instance:   rds_id,
         account_name:   account_name,
         backup_status:  status,
         status_message: message,
         status_url:     status_url,
+        files:          files,
       })
     end
 
@@ -45,7 +47,7 @@ module RDSDump
       status_path = "#{@s3_path}/status.json"
       @s3.put_object(@bucket, status_path, "#{to_json}\n")
       unless @status_url
-      expire_date = Time.now + (3600 * 24)  # one day from now
+        expire_date = Time.now + (3600 * 24)  # one day from now
         @status_url = @s3.get_object_http_url(@bucket, status_path, expire_date)
         @s3.put_object(@bucket, status_path, "#{to_json}\n")
       end
@@ -64,10 +66,12 @@ module RDSDump
         RDSDump.read_rds_accounts[account_name]['credentials']
       )
       original_server = rds.servers.get(rds_id)
+      db_name = original_server.db_name
+      db_user = original_server.master_username
       update_status "Waiting for RDS instance #{original_server.id}"
       original_server.wait_for { ready? }
 
-      # Snapshot the RDS
+      # Snapshot the original RDS
       snapshot_id = "rds-dump-service-#{rds_id}-#{@backup_id}"
       update_status "Creating snapshot #{snapshot_id} from RDS #{rds_id}"
       snapshot = rds.snapshots.create(id: snapshot_id, instance_id: rds_id)
@@ -75,7 +79,6 @@ module RDSDump
       snapshot.wait_for { ready? }
 
       # Create a new RDS from the snapshot
-      update_status "Creating snapshot #{snapshot_id} from RDS #{rds_id}"
       new_rds_id = "rds-dump-service-#{backup_id}"
       update_status "Booting new RDS #{new_rds_id} from snapshot #{snapshot_id}"
       response = rds.restore_db_instance_from_db_snapshot(snapshot.id, new_rds_id,
@@ -90,25 +93,39 @@ module RDSDump
 
       # Update the Master Password and apply the tightened RDS Security Group
       update_status "Modifying RDS attributes for new RDS #{new_instance.id}"
-      random_password = "%016x" % (rand * 0xffffffffffffffff)
+      new_password = "%016x" % (rand * 0xffffffffffffffff)
       rds.modify_db_instance(new_instance.id, true, {
         'DBParameterGroupName'  => original_server.db_parameter_groups.
                                     first['DBParameterGroupName'],
         'DBSecurityGroups'      => [ @config['rds_security_group'] ],
-        'MasterUserPassword'    => random_password,
+        'MasterUserPassword'    => new_password,
       })
-      update_status "Waiting for new attributes on RDS #{new_instance.id}"
       new_instance.reload
+      # TODO - reboot RDS if Parameter Group is still pending
       new_instance.wait_for { ready? }
 
       # Connect to the RDS server, and dump the database to a temp dir
-      
+      update_status "Dumping database #{db_name} from #{new_instance.id}"
+      sql_file  = "/tmp/#{@s3_path}/#{db_name}.sql.gz"
+      hostname  = new_instance.endpoint['Address']
+      dump_cmd  = "mysqldump -u #{db_user} -h #{hostname} "+
+        "-p#{new_password} #{db_name} | gzip >#{sql_file}"
+      FileUtils.mkpath(File.dirname sql_file)
+      @log.debug "Executing command: #{dump_cmd}"
+      `#{dump_cmd}`
+
       # Destroy the temporary RDS instance
       update_status "Deleting RDS instance #{new_instance.id}"
-      #new_instance.destroy
+      new_instance.destroy
 
-      # Compress the SQL dump
       # Upload the compressed SQL file to S3
+      update_status "Uploading output file #{::File.basename sql_file}"
+      dump_path = "#{@s3_path}/#{::File.basename sql_file}"
+      @s3.put_object(@bucket, dump_path, File.read(sql_file))
+      expire_date = Time.now + (3600 * 24 * 30)  # 30 days from now
+      output_url = @s3.get_object_http_url(@bucket, dump_path, expire_date)
+      @files = [ { name: ::File.basename(sql_file), url: output_url } ]
+      update_status "Backup complete"
     end
 
     # Writes a new status message to the log, and writes the job info to S3
