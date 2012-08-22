@@ -59,15 +59,17 @@ module RDSDump
     end
 
     # Top-level, long-running method for performing the backup.
+    # Builds up the instance state variables: @rds, @original_server,
+    # @snapshot, @new_instance, @new_password, and @sql_file.
     def perform_backup
       update_status "Backing up #{rds_id} from account #{account_name}"
-      prepare_backup
-      snapshot_original_rds
-      create_tmp_rds_from_snapshot
+      prepare_backup                # populates @rds and @original_server
+      snapshot_original_rds         # populates @snapshot
+      create_tmp_rds_from_snapshot  # populates @new_instance
       destroy_snapshot
-      configure_tmp_rds
-      # reboot_tmp_rds_if_needed  # TODO
-      download_data_from_tmp_rds
+      configure_tmp_rds             # populates @new_password
+      # reboot_tmp_rds_if_needed    # TODO
+      download_data_from_tmp_rds    # populates @sql_file
       delete_tmp_rds
       upload_output_to_s3
       update_status "Backup complete"
@@ -150,7 +152,7 @@ module RDSDump
       @s3.put_object(@bucket, dump_path, File.read(@sql_file))
       expire_date = Time.now + (3600 * 24 * 30)  # 30 days from now
       output_url = @s3.get_object_http_url(@bucket, dump_path, expire_date)
-      @files = [ { name: ::File.basename(sql_file), url: output_url } ]
+      @files = [ { name: ::File.basename(@sql_file), url: output_url } ]
     end
 
     # Writes a new status message to the log, and writes the job info to S3
