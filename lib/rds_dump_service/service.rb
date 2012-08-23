@@ -56,7 +56,7 @@ module RDSDump
         return [ 404, { errors: ["RDS instance #{rds_id} not found"]}.to_json ]
       end
 
-      # input is OK - queue up a BackupJob
+      # request is OK - queue up a BackupJob
       job = BackupJob.new(rds_id, rds.tracker_account[:name])
       logger.info "Queuing backup of RDS #{rds_id} in account #{job.account_name}"
       job.write_to_s3

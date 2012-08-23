@@ -1,10 +1,10 @@
 rds-development: 
-  provider: AWS
-  service: RDS
   credentials: 
     aws_access_key_id: XXXXXXXXXXXXXXXXXXXX
     aws_secret_access_key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   delay: 120
+  provider: AWS
+  service: RDS
   exclude_resources: 
   - parameters
   - security_groups
@@ -12,12 +12,12 @@ rds-development:
   - snapshots
 
 rds-production: 
-  provider: AWS
-  service: RDS
   credentials: 
     aws_access_key_id: XXXXXXXXXXXXXXXXXXXX
     aws_secret_access_key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   delay: 120
+  provider: AWS
+  service: RDS
   exclude_resources: 
   - parameters
   - security_groups
