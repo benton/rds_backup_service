@@ -68,11 +68,12 @@ module RDSDump
       create_tmp_rds_from_snapshot  # populates @new_instance
       destroy_snapshot
       configure_tmp_rds             # populates @new_password
-      # reboot_tmp_rds_if_needed    # TODO
+      wait_for_new_security_group
+      wait_for_new_parameter_group  # (reboots as needed)
       download_data_from_tmp_rds    # populates @sql_file
       delete_tmp_rds
       upload_output_to_s3
-      update_status "Backup complete"
+      update_status "Backup of #{rds_id} complete"
     end
 
     # Connects to the RDS web service, and waits for the instance to be ready
@@ -98,7 +99,7 @@ module RDSDump
     def create_tmp_rds_from_snapshot
       new_rds_id = "rds-dump-service-#{backup_id}"
       update_status "Booting new RDS #{new_rds_id} from snapshot #{@snapshot.id}"
-      response = @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
+      @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
         new_rds_id, 'DBInstanceClass' => @original_server.flavor_id)
       @new_instance = @rds.servers.get new_rds_id
     end
@@ -121,8 +122,37 @@ module RDSDump
         'DBSecurityGroups'      => [ @config['rds_security_group'] ],
         'MasterUserPassword'    => @new_password,
       })
-      @new_instance.reload
-      @new_instance.wait_for { ready? }
+    end
+
+    # Wait for the new RDS Security Group to become 'active'
+    def wait_for_new_security_group
+      old_group_name = @config['rds_security_group']
+      update_status "Applying security group #{old_group_name}"+
+        " to #{@new_instance.id}"
+      @new_instance.wait_for {
+        new_group = (db_security_groups.select do |group|
+          group['DBSecurityGroupName'] == old_group_name
+        end).first
+        (new_group ? new_group['Status'] : 'Unknown') == 'active'
+      }
+    end
+
+    # Wait for the new RDS Parameter Group to become 'in-sync'
+    def wait_for_new_parameter_group
+      old_name = @original_server.db_parameter_groups.first['DBParameterGroupName']
+      update_status "Applying parameter group #{old_name} to #{@new_instance.id}"
+      job = self  # save local var for closure in wait_for, below
+      @new_instance.wait_for {
+        new_group = (db_parameter_groups.select do |group|
+          group['DBParameterGroupName'] == old_name
+        end).first
+        status = (new_group ? new_group['ParameterApplyStatus'] : 'Unknown')
+        if (status == "pending-reboot")
+          job.update_status "Rebooting RDS #{id} to apply ParameterGroup #{old_name}"
+          reboot and wait_for { ready? }
+        end
+        status == 'in-sync' && ready?
+      }
     end
 
     # Connects to the RDS server, and dumps the database to a temp dir
@@ -130,7 +160,8 @@ module RDSDump
       db_name = @original_server.db_name
       db_user = @original_server.master_username
       update_status "Dumping database #{db_name} from #{@new_instance.id}"
-      @sql_file = "/tmp/#{@s3_path}/#{db_name}.sql.gz"
+      date_stamp = Time.parse(@snapshot.created_at.to_s).strftime("%Y-%m-%d-%H%M%S")
+      @sql_file = "/tmp/#{@s3_path}/#{db_name}.#{date_stamp}.sql.gz"
       hostname  = @new_instance.endpoint['Address']
       dump_cmd  = "mysqldump -u #{db_user} -h #{hostname} "+
         "-p#{@new_password} #{db_name} | gzip >#{@sql_file}"
@@ -150,9 +181,12 @@ module RDSDump
       update_status "Uploading output file #{::File.basename @sql_file}"
       dump_path = "#{@s3_path}/#{::File.basename @sql_file}"
       @s3.put_object(@bucket, dump_path, File.read(@sql_file))
-      expire_date = Time.now + (3600 * 24 * 30)  # 30 days from now
-      output_url = @s3.get_object_http_url(@bucket, dump_path, expire_date)
-      @files = [ { name: ::File.basename(@sql_file), url: output_url } ]
+      upload = @s3.directories.get(@bucket).files.get dump_path
+      @files = [ {
+        name: ::File.basename(@sql_file),
+        size: upload.content_length,
+        url:  upload.url(Time.now + (3600 * 24 * 30))  # 30 days from now
+      } ]
     end
 
     # Writes a new status message to the log, and writes the job info to S3
