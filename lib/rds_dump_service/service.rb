@@ -18,7 +18,6 @@ module RDSDump
     configure :production, :development do
       @logger = ::FogTracker.default_logger(STDOUT)
       @logger.level = ::Logger::INFO
-      use Rack::CommonLogger, @logger
       enable :logging
     end
 
