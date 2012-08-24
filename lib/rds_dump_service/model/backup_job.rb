@@ -63,17 +63,22 @@ module RDSDump
     # @snapshot, @new_instance, @new_password, and @sql_file.
     def perform_backup
       update_status "Backing up #{rds_id} from account #{account_name}"
-      prepare_backup                # populates @rds and @original_server
-      snapshot_original_rds         # populates @snapshot
-      create_tmp_rds_from_snapshot  # populates @new_instance
-      destroy_snapshot
-      configure_tmp_rds             # populates @new_password
-      wait_for_new_security_group
-      wait_for_new_parameter_group  # (reboots as needed)
+      create_disconnected_rds
       download_data_from_tmp_rds    # populates @sql_file
-      delete_tmp_rds
+      delete_disconnected_rds
       upload_output_to_s3
       update_status "Backup of #{rds_id} complete"
+    end
+
+    # Step 1 of the overall process - create a disconnected copy of the RDS
+    def create_disconnected_rds(new_rds_id = nil)
+      prepare_backup                # populates @rds and @original_server
+      snapshot_original_rds                     # populates @snapshot
+      create_tmp_rds_from_snapshot(new_rds_id)  # populates @new_instance
+      destroy_snapshot
+      configure_tmp_rds                         # populates @new_password
+      wait_for_new_security_group
+      wait_for_new_parameter_group              # (reboots as needed)
     end
 
     # Connects to the RDS web service, and waits for the instance to be ready
@@ -96,8 +101,8 @@ module RDSDump
     end
 
     # Creates a new RDS from the snapshot
-    def create_tmp_rds_from_snapshot
-      new_rds_id = "rds-dump-service-#{backup_id}"
+    def create_tmp_rds_from_snapshot(new_rds_id = nil)
+      new_rds_id ||= "rds-dump-service-#{backup_id}"
       update_status "Booting new RDS #{new_rds_id} from snapshot #{@snapshot.id}"
       @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
         new_rds_id, 'DBInstanceClass' => @original_server.flavor_id)
@@ -171,7 +176,7 @@ module RDSDump
     end
 
     # Destroys the temporary RDS instance
-    def delete_tmp_rds
+    def delete_disconnected_rds
       update_status "Deleting RDS instance #{@new_instance.id}"
       @new_instance.destroy
     end
