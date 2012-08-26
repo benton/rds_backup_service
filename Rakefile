@@ -7,7 +7,7 @@ when 'development'  then Bundler.setup(:default, :development)
 when 'test'         then Bundler.setup(:default, :development, :test)
 end
 
-require 'rds_dump_service'
+require 'rds_backup_service'
 require 'resque/tasks'
 
 # Load all tasks from 'lib/tasks'

@@ -1,18 +1,18 @@
 # -*- encoding: utf-8 -*-
 $:.push File.expand_path("../lib", __FILE__)
-require "rds_dump_service/version"
+require "rds_backup_service/version"
 
 Gem::Specification.new do |s|
-  s.name        = "rds_dump_service"
-  s.version     = RDSDump::VERSION
+  s.name        = "rds_backup_service"
+  s.version     = RDSBackup::VERSION
   s.authors     = ["Benton Roberts"]
   s.email       = ["benton@bentonroberts.com"]
-  s.homepage    = "http://github.com/benton/rds_dump_service"
+  s.homepage    = "http://github.com/benton/rds_backup_service"
   s.summary     = %q{Provides a REST API for backing up live RDS instances }+
                   %q{to S3 as a compressed SQL file.}
   s.description = %q{Provides a REST API for backing up live RDS instances }+
                   %q{to S3 as a compressed SQL file.}
-  s.rubyforge_project = "rds_dump_service"
+  s.rubyforge_project = "rds_backup_service"
 
   # This project is both a Gem and an Application,
   # so the Gemfile.lock is included in the repo for application users,

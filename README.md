@@ -25,23 +25,23 @@ Install project dependencies, fetch the code, and
 
     gem install rake bundler
     git clone https://github.com/benton/cloud_financial_officer.git
-    cd rds_dump_service
+    cd rds_backup_service
     bundle
 
 ###   To install as a library   ###
 
   1) Install the gem, or add it as a Bundler dependency and `bundle`.
 
-        gem install rds_dump_service
+        gem install rds_backup_service
 
   2) Require the middleware from your Rack application, then insert it
     in the stack:
 
-        require 'rds_dump_service'
+        require 'rds_backup_service'
         ...
-        config.middleware.use RDSDumper::Service  # (Rails application.rb)
+        config.middleware.use RDSBackup::Service  # (Rails application.rb)
                                                   # or
-        use RDSDump::Service                      # (Sinatra)
+        use RDSBackup::Service                    # (Sinatra)
 
 
 ----------------
@@ -70,8 +70,8 @@ Development
 
 2) Fetch the project code
 
-    git clone https://github.com/benton/rds_dump_service.git
-    cd rds_dump_service
+    git clone https://github.com/benton/rds_backup_service.git
+    cd rds_backup_service
 
 3) Bundle up and run the tests
 

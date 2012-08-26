@@ -1,8 +1,8 @@
 # The top-level project module. Contains some static helper methods.
-module RDSDump
+module RDSBackup
 
   PROJECT_DIR = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
-  require "#{PROJECT_DIR}/lib/rds_dump_service/version"
+  require "#{PROJECT_DIR}/lib/rds_backup_service/version"
 
   # Loads account information defined in account_file, or ENV['RDS_ACCOUNTS_FILE'].
   # @param account_file the path to a YAML file (see accounts.yml.example).
@@ -31,7 +31,7 @@ module RDSDump
   # Defines the root URI path of the web service.
   # @return [String] the root URI path of the web service
   def self.root
-    "/api/v#{RDSDump::API_VERSION}"
+    "/api/v#{RDSBackup::API_VERSION}"
   end
 
 end

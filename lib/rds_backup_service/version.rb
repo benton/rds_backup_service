@@ -1,4 +1,4 @@
-module RDSDump
+module RDSBackup
   # The version of this Gem / Library.
   VERSION = "0.0.1"
 

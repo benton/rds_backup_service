@@ -1,7 +1,7 @@
 require 'fileutils'
-module RDSDump
+module RDSBackup
   # Backs up the contents of a single RDS database to S3
-  class BackupJob
+  class Job
 
     @queue = :backups
 
@@ -21,8 +21,8 @@ module RDSDump
       @requested  = options['requested'] ? Time.parse(options['requested']) : Time.now
       @status     = 200
       @message    = "queued"
-      @s3         = RDSDump.s3
-      @config     = RDSDump.settings
+      @s3         = RDSBackup.s3
+      @config     = RDSBackup.settings
       @bucket     = @config['backup_bucket']
       @s3_path    = "#{@config['backup_prefix']}/"+
                     "#{requested.strftime("%Y/%m/%d")}/#{rds_id}/#{backup_id}"
@@ -55,7 +55,7 @@ module RDSDump
     # Entry point for the Resque framework.
     # Parameters are the same as for #initialize()
     def self.perform(rds_instance_id, account_name, options = {})
-      job = BackupJob.new(rds_instance_id, account_name, options).perform_backup
+      job = Job.new(rds_instance_id, account_name, options).perform_backup
     end
 
     # Top-level, long-running method for performing the backup.
@@ -79,7 +79,7 @@ module RDSDump
     # Connects to the RDS web service, and waits for the instance to be ready
     def prepare_backup
       @rds = ::Fog::AWS::RDS.new(
-        RDSDump.read_rds_accounts[account_name]['credentials']
+        RDSBackup.read_rds_accounts[account_name]['credentials']
       )
       @original_server = @rds.servers.get(rds_id)
       update_status "Waiting for RDS instance #{@original_server.id}"
@@ -88,7 +88,7 @@ module RDSDump
 
     # Snapshots the original RDS
     def snapshot_original_rds
-      snapshot_id = "rds-dump-service-#{rds_id}-#{backup_id}"
+      snapshot_id = "rds-backup-service-#{rds_id}-#{backup_id}"
       update_status "Creating snapshot #{snapshot_id} from RDS #{rds_id}"
       @snapshot = @rds.snapshots.create(id: snapshot_id, instance_id: rds_id)
       update_status "Waiting for snapshot #{snapshot_id}"
@@ -97,7 +97,7 @@ module RDSDump
 
     # Creates a new RDS from the snapshot
     def create_tmp_rds_from_snapshot
-      new_rds_id = "rds-dump-service-#{backup_id}"
+      new_rds_id = "rds-backup-service-#{backup_id}"
       update_status "Booting new RDS #{new_rds_id} from snapshot #{@snapshot.id}"
       @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
         new_rds_id, 'DBInstanceClass' => @original_server.flavor_id)

@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rds_dump_service (0.0.1)
+    rds_backup_service (0.0.1)
       fog_tracker (>= 0.4.0)
       resque
       sinatra
@@ -96,6 +96,6 @@ DEPENDENCIES
   guard
   guard-rspec
   rake
-  rds_dump_service!
+  rds_backup_service!
   rspec
   ruby_gntp

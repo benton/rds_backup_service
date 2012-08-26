@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
-require File.join(File.dirname(__FILE__), '..', 'rds_dump_service')
+require File.join(File.dirname(__FILE__), '..', 'rds_backup_service')
 require 'sinatra/base'
 require 'fog_tracker'
 require 'resque'
 
-module RDSDump
+module RDSBackup
   # A RESTful web service for backing up RDS databases to S3.
   class Service < Sinatra::Base
 
@@ -24,7 +24,7 @@ module RDSDump
     # on startup, load account information
     configure do
       @logger.info "Loading account information..."
-      accounts = RDSDump.read_rds_accounts
+      accounts = RDSBackup.read_rds_accounts
       tracker = FogTracker::Tracker.new(accounts, :logger => @logger)
       set :accounts, accounts
       set :tracker, tracker
@@ -42,8 +42,8 @@ module RDSDump
     before do ; content_type 'application/json' end   # serve JSON
 
     ######## POST /api/vXXX/backups ########
-    # Queues a RDSDump::BackupJob for a given :rds_instance
-    post "#{RDSDump.root}/backups" do
+    # Queues a Job for a given :rds_instance
+    post "#{RDSBackup.root}/backups" do
       rds_id  = params[:rds_instance]
       servers = settings.tracker['*::AWS::RDS::servers']
       rds     = (servers.select {|rds| rds.identity == rds_id}).first
@@ -56,11 +56,11 @@ module RDSDump
       end
 
       # request is OK - queue up a BackupJob
-      job = BackupJob.new(rds_id, rds.tracker_account[:name])
+      job = Job.new(rds_id, rds.tracker_account[:name])
       logger.info "Queuing backup of RDS #{rds_id} in account #{job.account_name}"
       job.write_to_s3
-      ::Resque.enqueue_to(:backups, BackupJob, job.rds_id, job.account_name,
-        backup_id: job.backup_id, requested: job.requested)
+      ::Resque.enqueue_to(:backups, Job, job.rds_id, job.account_name,
+        params.merge(backup_id: job.backup_id, requested: job.requested))
 
       [ 201,                                # return HTTP_CREATED, and
         { 'Location' => job.status_url },   # point to the S3 document

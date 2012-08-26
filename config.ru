@@ -1,2 +1,2 @@
-require './lib/rds_dump_service/service'
-run RDSDump::Service
+require './lib/rds_backup_service/service'
+run RDSBackup::Service
