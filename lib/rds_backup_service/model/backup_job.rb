@@ -101,8 +101,8 @@ module RDSBackup
     end
 
     # Creates a new RDS from the snapshot
-    def create_tmp_rds_from_snapshot
-      new_rds_id = "rds-backup-service-#{backup_id}"
+    def create_tmp_rds_from_snapshot(new_rds_id)
+      new_rds_id ||= "rds-backup-service-#{backup_id}"
       update_status "Booting new RDS #{new_rds_id} from snapshot #{@snapshot.id}"
       @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
         new_rds_id, 'DBInstanceClass' => @original_server.flavor_id)
