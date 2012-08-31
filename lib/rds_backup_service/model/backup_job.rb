@@ -21,12 +21,15 @@ module RDSBackup
       @requested  = options['requested'] ? Time.parse(options['requested']) : Time.now
       @status     = 200
       @message    = "queued"
+      @files      = []
       @s3         = RDSBackup.s3
       @config     = RDSBackup.settings
       @bucket     = @config['backup_bucket']
       @s3_path    = "#{@config['backup_prefix']}/"+
                     "#{requested.strftime("%Y/%m/%d")}/#{rds_id}/#{backup_id}"
-      @files      = []
+      @snapshot_id  = "rds-backup-service-#{rds_id}-#{backup_id}"
+      @new_rds_id   = "rds-backup-service-#{backup_id}"
+      @new_password = "#{backup_id}"
     end
 
     # returns a JSON-format String representation of this backup job
@@ -55,7 +58,13 @@ module RDSBackup
     # Entry point for the Resque framework.
     # Parameters are the same as for #initialize()
     def self.perform(rds_instance_id, account_name, options = {})
-      job = Job.new(rds_instance_id, account_name, options).perform_backup
+      job = Job.new(rds_instance_id, account_name, options)
+      begin
+        job.perform_backup
+      rescue Exception => e
+        job.update_status "ERROR: #{e.message.split("\n").first}", 500
+        raise e
+      end
     end
 
     # Top-level, long-running method for performing the backup.
@@ -71,56 +80,63 @@ module RDSBackup
     end
 
     # Step 1 of the overall process - create a disconnected copy of the RDS
-    def create_disconnected_rds(new_rds_id = nil)
-      prepare_backup                # populates @rds and @original_server
-      snapshot_original_rds                     # populates @snapshot
-      create_tmp_rds_from_snapshot(new_rds_id)  # populates @new_instance
-      destroy_snapshot
-      configure_tmp_rds                         # populates @new_password
+    def create_disconnected_rds(new_rds_name = nil)
+      @new_rds_id = new_rds_name if new_rds_name
+      prepare_backup
+      snapshot_original_rds
+      create_tmp_rds_from_snapshot
+      configure_tmp_rds
       wait_for_new_security_group
-      wait_for_new_parameter_group              # (reboots as needed)
+      wait_for_new_parameter_group # (reboots as needed)
+      destroy_snapshot
     end
 
-    # Connects to the RDS web service, and waits for the instance to be ready
+    # Queries RDS for any pre-existing entities associated with this job.
+    # Also waits for the original RDS to become ready.
     def prepare_backup
       @rds = ::Fog::AWS::RDS.new(
         RDSBackup.read_rds_accounts[account_name]['credentials']
       )
-      @original_server = @rds.servers.get(rds_id)
-      update_status "Waiting for RDS instance #{@original_server.id}"
-      @original_server.wait_for { ready? }
+      @original_server  = @rds.servers.get(rds_id)
+      @snapshot         = @rds.snapshots.get @snapshot_id
+      @new_instance     = @rds.servers.get @new_rds_id
     end
 
     # Snapshots the original RDS
     def snapshot_original_rds
-      snapshot_id = "rds-backup-service-#{rds_id}-#{backup_id}"
-      update_status "Creating snapshot #{snapshot_id} from RDS #{rds_id}"
-      @snapshot = @rds.snapshots.create(id: snapshot_id, instance_id: rds_id)
-      update_status "Waiting for snapshot #{snapshot_id}"
-      @snapshot.wait_for { ready? }
+      unless @new_instance || @snapshot
+        update_status "Waiting for RDS instance #{@original_server.id}"
+        @original_server.wait_for { ready? }
+        update_status "Creating snapshot #{@snapshot_id} from RDS #{rds_id}"
+        @snapshot = @rds.snapshots.create(id: @snapshot_id, instance_id: rds_id)
+      end
     end
 
     # Creates a new RDS from the snapshot
-    def create_tmp_rds_from_snapshot(new_rds_id)
-      new_rds_id ||= "rds-backup-service-#{backup_id}"
-      update_status "Booting new RDS #{new_rds_id} from snapshot #{@snapshot.id}"
-      @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
-        new_rds_id, 'DBInstanceClass' => @original_server.flavor_id)
-      @new_instance = @rds.servers.get new_rds_id
+    def create_tmp_rds_from_snapshot
+      unless @new_instance
+        update_status "Waiting for snapshot #{@snapshot_id}"
+        @snapshot.wait_for { ready? }
+        update_status "Booting new RDS #{@new_rds_id} from snapshot #{@snapshot.id}"
+        @rds.restore_db_instance_from_db_snapshot(@snapshot.id,
+          @new_rds_id, 'DBInstanceClass' => @original_server.flavor_id)
+        @new_instance = @rds.servers.get @new_rds_id
+      end
     end
 
-    # Destroys the snapshot
+    # Destroys the snapshot if it exists
     def destroy_snapshot
-      update_status "Waiting for new RDS instance #{@new_instance.id}"
-      @new_instance.wait_for { ready? }
-      update_status "Deleting snapshot #{@snapshot.id}"
-      @snapshot.destroy
+      if (@snapshot = @rds.snapshots.get @snapshot_id)
+        update_status "Deleting snapshot #{@snapshot.id}"
+        @snapshot.destroy
+      end
     end
 
     # Updates the Master Password and applies the tightened RDS Security Group
     def configure_tmp_rds
+      update_status "Waiting for instance #{@new_instance.id}..."
+      @new_instance.wait_for { ready? }
       update_status "Modifying RDS attributes for new RDS #{@new_instance.id}"
-      @new_password = "%016x" % (rand * 0xffffffffffffffff)
       @rds.modify_db_instance(@new_instance.id, true, {
         'DBParameterGroupName'  => @original_server.db_parameter_groups.
                                     first['DBParameterGroupName'],
@@ -198,8 +214,8 @@ module RDSBackup
     def update_status(message, new_status = nil)
       @message  = message
       @status   = new_status if new_status
-      @log.info message
-      write_to_s3
+      @status == 200 ? (@log.info message) : (@log.error message)
+      write_to_s3 if @s3
     end
 
   end
