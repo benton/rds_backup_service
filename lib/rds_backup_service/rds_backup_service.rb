@@ -1,5 +1,6 @@
 # The top-level project module. Contains some static helper methods.
 module RDSBackup
+  require 'fog'
 
   PROJECT_DIR = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
   require "#{PROJECT_DIR}/lib/rds_backup_service/version"
@@ -42,7 +43,7 @@ module RDSBackup
   def self.check_setup
     group = RDSBackup.settings['rds_security_group']
     errors = RDSBackup.read_rds_accounts.inject([]) do |errors, account|
-      unless Fog::AWS::RDS.new(account[1]['credentials']).security_groups.get group
+      unless ::Fog::AWS::RDS.new(account[1]['credentials']).security_groups.get group
         errors.push "SecurityGroup #{group} not found in RDS account #{account[0]}"
       end
       errors
@@ -52,5 +53,5 @@ module RDSBackup
 
 end
 
-# Recursively load all ruby files from the current directory
-Dir[File.join(File.dirname(__FILE__), "**/*.rb")].each {|file| require file}
+# Recursively load all ruby files from the models directory
+Dir[File.join(File.dirname(__FILE__), "model/*.rb")].each {|file| require file}
