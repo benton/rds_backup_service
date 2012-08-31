@@ -8,7 +8,7 @@ module RDSBackup
   # @param account_file the path to a YAML file (see accounts.yml.example).
   # @return [Array<Hash>] an Array of Hashes representing the account info.
   def self.read_rds_accounts(account_file = ENV['RDS_ACCOUNTS_FILE'])
-    YAML::load(File.read(account_file ||= "#{PROJECT_DIR}/config/rds_accounts.yml"))
+    YAML::load(File.read(account_file || "#{PROJECT_DIR}/config/rds_accounts.yml"))
   end
 
   # Returns a new connection to the AWS S3 service (Fog::Storage::AWS),
@@ -35,6 +35,19 @@ module RDSBackup
   # @return [String] the root URI path of the web service
   def self.root
     "/api/v#{RDSBackup::API_VERSION}"
+  end
+
+  # Checks all defined RDS accounts to see if the security group exists.
+  # Raises an Exception if that's not true.
+  def self.check_setup
+    group = RDSBackup.settings['rds_security_group']
+    errors = RDSBackup.read_rds_accounts.inject([]) do |errors, account|
+      unless Fog::AWS::RDS.new(account[1]['credentials']).security_groups.get group
+        errors.push "SecurityGroup #{group} not found in RDS account #{account[0]}"
+      end
+      errors
+    end
+    raise errors.join("\n") unless errors.empty?
   end
 
 end
