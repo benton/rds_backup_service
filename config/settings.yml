@@ -9,3 +9,7 @@ backup_prefix: testing
 # RDS account, and be open to this server, so that the
 # mysqldump can take place!
 rds_security_group: rds-backup-service
+
+# Where to store DB data while compressing it, before upload
+# defaults to Ruby's Dir.tmpdir
+#tmp_dir: "/tmp"

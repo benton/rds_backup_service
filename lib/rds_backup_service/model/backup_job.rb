@@ -178,11 +178,13 @@ module RDSBackup
 
     # Connects to the RDS server, and dumps the database to a temp dir
     def download_data_from_tmp_rds
+      @new_instance.wait_for { ready? }
       db_name = @original_server.db_name
       db_user = @original_server.master_username
       update_status "Dumping database #{db_name} from #{@new_instance.id}"
-      date_stamp = Time.parse(@snapshot.created_at.to_s).strftime("%Y-%m-%d-%H%M%S")
-      @sql_file = "/tmp/#{@s3_path}/#{db_name}.#{date_stamp}.sql.gz"
+      dump_time   = @snapshot ? Time.parse(@snapshot.created_at.to_s) : Time.now
+      date_stamp  = dump_time.strftime("%Y-%m-%d-%H%M%S")
+      @sql_file = "#{@config['tmp_dir']}/#{@s3_path}/#{db_name}.#{date_stamp}.sql.gz"
       hostname  = @new_instance.endpoint['Address']
       dump_cmd  = "mysqldump -u #{db_user} -h #{hostname} "+
         "-p#{@new_password} #{db_name} | gzip >#{@sql_file}"
@@ -208,6 +210,8 @@ module RDSBackup
         size: upload.content_length,
         url:  upload.url(Time.now + (3600 * 24 * 30))  # 30 days from now
       } ]
+      @log.info "Deleting tmp directory #{File.dirname @sql_file}"
+      FileUtils.rm_rf(File.dirname @sql_file)
     end
 
     # Writes a new status message to the log, and writes the job info to S3

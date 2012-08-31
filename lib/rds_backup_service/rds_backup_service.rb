@@ -25,7 +25,10 @@ module RDSBackup
   # Returns the configuration Hash read from config/s3_account.yml
   # or ENV['RDSDUMP_SETTINGS_FILE'].
   def self.settings(settings_file = ENV['RDSDUMP_SETTINGS_FILE'])
-    YAML::load(File.read(settings_file ||= "#{PROJECT_DIR}/config/settings.yml"))
+    { # here are some defaults
+      'tmp_dir' => Dir.tmpdir
+    }.merge(YAML::load(
+      File.read(settings_file || "#{PROJECT_DIR}/config/settings.yml")))
   end
 
   # Defines the root URI path of the web service.

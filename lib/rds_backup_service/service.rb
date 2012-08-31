@@ -56,7 +56,7 @@ module RDSBackup
       end
 
       # request is OK - queue up a BackupJob
-      job = Job.new(rds_id, rds.tracker_account[:name])
+      job = Job.new(rds_id, rds.tracker_account[:name], params)
       logger.info "Queuing backup of RDS #{rds_id} in account #{job.account_name}"
       job.write_to_s3
       ::Resque.enqueue_to(:backups, Job, job.rds_id, job.account_name,
