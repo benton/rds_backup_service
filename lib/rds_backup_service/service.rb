@@ -21,22 +21,16 @@ module RDSBackup
       enable :logging
     end
 
-    # on startup, load account information
+    # on startup, load account information and start tracking RDS instances
     configure do
       @logger.info "Loading account information..."
       accounts = RDSBackup.read_rds_accounts
       tracker = FogTracker::Tracker.new(accounts, :logger => @logger)
+      @logger.info "Starting tracker..."
+      tracker.update
+      tracker.start
       set :accounts, accounts
       set :tracker, tracker
-    end
-
-    # lazily initialize and start the tracker
-    before do
-      unless settings.tracker.running?
-        logger.info "Starting tracker..."
-        settings.tracker.update
-        settings.tracker.start
-      end
     end
 
     before do ; content_type 'application/json' end   # serve JSON
@@ -68,6 +62,6 @@ module RDSBackup
       ]
     end
 
-    #run! if app_file == $0  # start the server if ruby file executed directly
+    run! if app_file == $0  # start the server if ruby file executed directly
   end
 end
