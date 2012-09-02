@@ -27,7 +27,6 @@ Gem::Specification.new do |s|
 
   # Runtime dependencies
   s.add_dependency "sinatra"
-  s.add_dependency "sinatra-contrib"
   s.add_dependency "fog_tracker", ">=0.4.0"
   s.add_dependency "resque"
   s.add_dependency "ohai"
