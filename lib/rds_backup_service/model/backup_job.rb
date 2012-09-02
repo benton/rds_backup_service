@@ -1,5 +1,6 @@
 require 'fog_tracker'
 require 'fileutils'
+require 'json'
 module RDSBackup
   # Backs up the contents of a single RDS database to S3
   class Job
@@ -96,7 +97,7 @@ module RDSBackup
     # Also waits for the original RDS to become ready.
     def prepare_backup
       @rds = ::Fog::AWS::RDS.new(
-        RDSBackup.read_rds_accounts[account_name]['credentials']
+        RDSBackup.rds_accounts[account_name]['credentials']
       )
       @original_server  = @rds.servers.get(rds_id)
       @snapshot         = @rds.snapshots.get @snapshot_id

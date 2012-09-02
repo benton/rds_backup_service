@@ -9,24 +9,33 @@ module RDSBackup
   # Loads account information defined in account_file, or ENV['RDS_ACCOUNTS_FILE'].
   # @param account_file the path to a YAML file (see accounts.yml.example).
   # @return [Array<Hash>] an Array of Hashes representing the account info.
-  def self.read_rds_accounts(account_file = ENV['RDS_ACCOUNTS_FILE'])
-    YAML::load(File.read(account_file || "#{PROJECT_DIR}/config/rds_accounts.yml"))
+  def self.read_accounts(account_file = ENV['RDS_ACCOUNTS_FILE'])
+    YAML::load(File.read(account_file || "#{PROJECT_DIR}/config/accounts.yml"))
   end
 
-  # Returns a new connection to the AWS S3 service (Fog::Storage::AWS),
-  # with the credentials from config/s3_account.yml or ENV['S3_ACCOUNT_FILE'].
-  def self.s3(confg_file = ENV['S3_ACCOUNT_FILE'])
-    s3_config = YAML::load(File.read(
-      account_file ||= "#{PROJECT_DIR}/config/s3_account.yml"))
-    Fog::Storage::AWS.new(
-      aws_access_key_id:     s3_config['aws_access_key_id'],
-      aws_secret_access_key: s3_config['aws_secret_access_key'],
-    )
+  # Loads account information defined in account_file, and returns only those
+  # entries that repesent RDS accounts.
+  def self.rds_accounts
+    RDSBackup.read_accounts.select{|id,acc| acc['service'] == 'RDS'}
+  end
+
+  # Returns a new connection to the AWS EC2 service (Fog::Compute::AWS)
+  def self.ec2
+    accts = RDSBackup.read_accounts.select{|id,acc| acc['service'] == 'Compute'}
+    raise "At least one S3 account must be defined" if accts.empty?
+    Fog::Compute::AWS.new(accts.first[1]['credentials'])
+  end
+
+  # Returns a new connection to the AWS S3 service (Fog::Storage::AWS)
+  def self.s3
+    accts = RDSBackup.read_accounts.select{|id,acc| acc['service'] == 'Storage'}
+    raise "At least one S3 account must be defined" if accts.empty?
+    Fog::Storage::AWS.new(accts.first[1]['credentials'])
   end
 
   # Returns the configuration Hash read from config/s3_account.yml
   # or ENV['RDSDUMP_SETTINGS_FILE'].
-  def self.settings(settings_file = ENV['RDSDUMP_SETTINGS_FILE'])
+  def self.settings(settings_file = ENV['RDS_SETTINGS_FILE'])
     { # here are some defaults
       'rds_security_group'  => 'rds-backup-service',
       'ec2_security_group'  => 'rds-backup-service',

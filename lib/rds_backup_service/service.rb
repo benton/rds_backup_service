@@ -16,19 +16,17 @@ module RDSBackup
 
     # configure logging when not in test mode
     configure :production, :development do
-      @logger = RDSBackup.default_logger(STDOUT)
+      @log = RDSBackup.default_logger(STDOUT)
       enable :logging
     end
 
     # on startup, load account information and start tracking RDS instances
     configure do
-      @logger.info "Loading account information..."
-      accounts = RDSBackup.read_rds_accounts
-      tracker = FogTracker::Tracker.new(accounts, :logger => @logger)
-      @logger.info "Starting tracker..."
+      @log.info "Loading account information..."
+      tracker = FogTracker::Tracker.new(RDSBackup.rds_accounts, :logger => @log)
+      @log.info "Starting tracker..."
       tracker.update
       tracker.start
-      set :accounts, accounts
       set :tracker, tracker
     end
 

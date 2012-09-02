@@ -10,20 +10,12 @@ module RDSBackup
       (system = Ohai::System.new).all_plugins
       log.info "Reading config files..."
       settings = RDSBackup.settings
-      accounts = RDSBackup.read_rds_accounts
       ec2_group_name = settings['ec2_security_group']
       rds_group_name = settings['rds_security_group']
-      rds_accounts = accounts.select{|id,acc| acc['service'] == 'RDS'}
-
-      # Initialization
-      unless s3_data = accounts.select{|id,acc| acc['service'] == 'Compute'}.first
-        raise "ERROR: At least one EC2 account must be defined"
-      end
-      s3_acc_name = s3_data[0]
-      log.info "Checking #{s3_acc_name} for Security Group #{ec2_group_name}"
-      ec2 = ::Fog::Compute.new(s3_data[1]['credentials'].merge(provider: 'AWS'))
+      ec2 = RDSBackup.ec2
 
       # EC2 Security Group creation
+      log.info "Checking EC2 for Security Group #{ec2_group_name}"
       unless ec2_group = ec2.security_groups.get(ec2_group_name)
         log.info "Creating EC2 Security group #{ec2_group_name}"
         ec2_group = ec2.security_groups.create(:name => ec2_group_name,
@@ -31,7 +23,7 @@ module RDSBackup
       end
 
       # RDS Security Group creation and authorization
-      rds_accounts.each do |account_name, account_data|
+      RDSBackup.rds_accounts.each do |account_name, account_data|
         log.info "Checking account #{account_name} for "+
           "RDS Security group #{rds_group_name}"
         rds = ::Fog::AWS::RDS.new(account_data['credentials'])
