@@ -1,4 +1,4 @@
-# The S3 bucket name where all backups will be saved
+# The S3 bucket name where all backups will be saved - REQUIRED
 backup_bucket: rdsbackups
 
 # All backups will be prefixed with backup_prefix 
@@ -8,7 +8,11 @@ backup_prefix: testing
 # The rds_security_group must be defined in each
 # RDS account, and be open to this server, so that the
 # mysqldump can take place!
-rds_security_group: rds-backup-service
+#rds_security_group: rds-backup-service
+
+# The ec2_security_group must be defined in the EC2 account
+# under which this service runs.
+#ec2_security_group: rds-backup-service
 
 # Where to store DB data while compressing it, before upload
 # defaults to Ruby's Dir.tmpdir
