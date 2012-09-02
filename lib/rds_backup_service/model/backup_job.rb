@@ -27,7 +27,7 @@ module RDSBackup
       @s3         = RDSBackup.s3
       @config     = RDSBackup.settings
       @bucket     = @config['backup_bucket']
-      @s3_path    = "#{@config['backup_prefix']}/"+
+      @s3_path    = (@config['backup_prefix'] ? "#{@config['backup_prefix']}/" : "")+
                     "#{requested.strftime("%Y/%m/%d")}/#{rds_id}/#{backup_id}"
       @snapshot_id  = "rds-backup-service-#{rds_id}-#{backup_id}"
       @new_rds_id   = "rds-backup-service-#{backup_id}"

@@ -6,11 +6,12 @@ module RDSBackup
   PROJECT_DIR = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
   require "#{PROJECT_DIR}/lib/rds_backup_service/version"
 
-  # Loads account information defined in account_file, or ENV['RDS_ACCOUNTS_FILE'].
+  # Loads account information defined in config/accounts.yml, or
+  # ENV['RDS_ACCOUNTS_FILE'].
   # @param account_file the path to a YAML file (see accounts.yml.example).
   # @return [Array<Hash>] an Array of Hashes representing the account info.
   def self.read_accounts(account_file = ENV['RDS_ACCOUNTS_FILE'])
-    YAML::load(File.read(account_file || "#{PROJECT_DIR}/config/accounts.yml"))
+    YAML::load(File.read(account_file || "./config/accounts.yml"))
   end
 
   # Loads account information defined in account_file, and returns only those
@@ -41,7 +42,7 @@ module RDSBackup
       'ec2_security_group'  => 'rds-backup-service',
       'tmp_dir'             => Dir.tmpdir,
     }.merge(YAML::load(
-      File.read(settings_file || "#{PROJECT_DIR}/config/settings.yml")))
+      File.read(settings_file || "./config/settings.yml")))
   end
 
   # Defines the root URI path of the web service.
