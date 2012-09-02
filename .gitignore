@@ -1,7 +1,6 @@
 *.gem
 .bundle
-config/s3_account.yml
-config/rds_accounts.yml
+config/accounts.yml
 pkg/*
 *~
 .DS_Store
