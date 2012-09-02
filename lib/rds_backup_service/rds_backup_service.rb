@@ -1,7 +1,8 @@
 # The top-level project module. Contains some static helper methods.
 module RDSBackup
   require 'fog'
-
+  require 'tmpdir'
+  require 'ohai'
   PROJECT_DIR = File.expand_path(File.join(File.dirname(__FILE__), '..', '..'))
   require "#{PROJECT_DIR}/lib/rds_backup_service/version"
 
@@ -27,7 +28,9 @@ module RDSBackup
   # or ENV['RDSDUMP_SETTINGS_FILE'].
   def self.settings(settings_file = ENV['RDSDUMP_SETTINGS_FILE'])
     { # here are some defaults
-      'tmp_dir' => Dir.tmpdir
+      'rds_security_group'  => 'rds-backup-service',
+      'ec2_security_group'  => 'rds-backup-service',
+      'tmp_dir'             => Dir.tmpdir,
     }.merge(YAML::load(
       File.read(settings_file || "#{PROJECT_DIR}/config/settings.yml")))
   end
@@ -38,20 +41,11 @@ module RDSBackup
     "/api/v#{RDSBackup::API_VERSION}"
   end
 
-  # Checks all defined RDS accounts to see if the security group exists.
-  # Raises an Exception if that's not true.
-  def self.check_setup
-    group = RDSBackup.settings['rds_security_group']
-    errors = RDSBackup.read_rds_accounts.inject([]) do |errors, account|
-      unless ::Fog::AWS::RDS.new(account[1]['credentials']).security_groups.get group
-        errors.push "SecurityGroup #{group} not found in RDS account #{account[0]}"
-      end
-      errors
-    end
-    raise errors.join("\n") unless errors.empty?
+  def self.default_logger(output = nil)
+    logger = ::Logger.new(output)
+    logger.sev_threshold = Logger::INFO
+    logger.formatter = proc {|lvl, time, prog, msg| "#{lvl}: #{msg}\n"}
+    logger
   end
 
 end
-
-# Recursively load all ruby files from the models directory
-Dir[File.join(File.dirname(__FILE__), "model/*.rb")].each {|file| require file}

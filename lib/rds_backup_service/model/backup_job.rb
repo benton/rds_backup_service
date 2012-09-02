@@ -17,7 +17,7 @@ module RDSBackup
     #  - :requested - a Time when this job was requested
     def initialize(rds_instance_id, account_name, options = {})
       @rds_id, @account_name, @options = rds_instance_id, account_name, options
-      @log        = ::FogTracker.default_logger(STDOUT)
+      @log        = RDSBackup.default_logger(STDOUT)
       @backup_id  = options['backup_id'] || "%016x" % (rand * 0xffffffffffffffff)
       @requested  = options['requested'] ? Time.parse(options['requested']) : Time.now
       @status     = 200

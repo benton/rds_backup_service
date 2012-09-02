@@ -16,8 +16,7 @@ module RDSBackup
 
     # configure logging when not in test mode
     configure :production, :development do
-      @logger = ::FogTracker.default_logger(STDOUT)
-      @logger.level = ::Logger::INFO
+      @logger = RDSBackup.default_logger(STDOUT)
       enable :logging
     end
 
