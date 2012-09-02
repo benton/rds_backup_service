@@ -16,11 +16,12 @@ module RDSBackup
     # @param [Hash] options optional additional parameters:
     #  - :backup_id - a unique ID for this job, if necessary
     #  - :requested - a Time when this job was requested
-    def initialize(rds_instance_id, account_name, options = {})
-      @rds_id, @account_name, @options = rds_instance_id, account_name, options
-      @log        = RDSBackup.default_logger(STDOUT)
+    #  - :logger - a Logger object, for printing this job's ongoing status
+    def initialize(rds_instance_id, options = {})
+      @rds_id, @options = rds_instance_id, options
       @backup_id  = options['backup_id'] || "%016x" % (rand * 0xffffffffffffffff)
       @requested  = options['requested'] ? Time.parse(options['requested']) : Time.now
+      @log        = options['logger'] || RDSBackup.default_logger(STDOUT)
       @status     = 200
       @message    = "queued"
       @files      = []
@@ -32,6 +33,7 @@ module RDSBackup
       @snapshot_id  = "rds-backup-service-#{rds_id}-#{backup_id}"
       @new_rds_id   = "rds-backup-service-#{backup_id}"
       @new_password = "#{backup_id}"
+      @account_name = options['account_name']
     end
 
     # returns a JSON-format String representation of this backup job
@@ -59,8 +61,8 @@ module RDSBackup
 
     # Entry point for the Resque framework.
     # Parameters are the same as for #initialize()
-    def self.perform(rds_instance_id, account_name, options = {})
-      job = Job.new(rds_instance_id, account_name, options)
+    def self.perform(rds_instance_id, options = {})
+      job = Job.new(rds_instance_id, options)
       begin
         job.perform_backup
       rescue Exception => e
@@ -96,10 +98,13 @@ module RDSBackup
     # Queries RDS for any pre-existing entities associated with this job.
     # Also waits for the original RDS to become ready.
     def prepare_backup
+      unless @original_server = RDSBackup.get_rds(rds_id)
+        names = RDSBackup.rds_accounts.map {|name, account| name }
+        raise "Unable to find RDS #{rds_id} in accounts #{names.join ", "}"
+      end
+      @account_name = @original_server.tracker_account[:name]
       @rds = ::Fog::AWS::RDS.new(
-        RDSBackup.rds_accounts[account_name]['credentials']
-      )
-      @original_server  = @rds.servers.get(rds_id)
+        RDSBackup.rds_accounts[@account_name]['credentials'])
       @snapshot         = @rds.snapshots.get @snapshot_id
       @new_instance     = @rds.servers.get @new_rds_id
     end

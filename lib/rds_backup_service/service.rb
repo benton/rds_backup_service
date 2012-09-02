@@ -8,12 +8,6 @@ module RDSBackup
   # A RESTful web service for backing up RDS databases to S3.
   class Service < Sinatra::Base
 
-    # check tmp/restart.txt for reload requests in development mode
-    configure :development do
-      require 'sinatra/reloader'
-      register Sinatra::Reloader
-    end
-
     # configure logging when not in test mode
     configure :production, :development do
       @log = RDSBackup.default_logger(STDOUT)
@@ -47,11 +41,10 @@ module RDSBackup
       end
 
       # request is OK - queue up a BackupJob
-      job = Job.new(rds_id, rds.tracker_account[:name], params)
+      job = Job.new(rds_id, params.merge(account_name: rds.tracker_account[:name]))
       logger.info "Queuing backup of RDS #{rds_id} in account #{job.account_name}"
       job.write_to_s3
-      ::Resque.enqueue_to(:backups, Job, job.rds_id, job.account_name,
-        params.merge(backup_id: job.backup_id, requested: job.requested))
+      ::Resque.enqueue_to(:backups, Job, job.rds_id, job.options)
 
       [ 201,                                # return HTTP_CREATED, and
         { 'Location' => job.status_url },   # point to the S3 document
