@@ -58,4 +58,13 @@ module RDSBackup
     logger
   end
 
+  # Returns a Fog RDS entity for a given an RDS ID. Polls all accounts.
+  # The account name is attached to the result as 'tracker_account[:name]'.
+  # @param [String] the name of the desired RDS entity
+  # @return [Fog::AWS::RDS::Server] the RDS instance, or nil if not found
+  def self.get_rds(rds_id)
+    ::FogTracker::Tracker.new(RDSBackup.rds_accounts).update.
+      select{|rds| rds.identity == rds_id}.first
+  end
+
 end
