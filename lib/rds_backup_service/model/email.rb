@@ -12,7 +12,8 @@ module RDSBackup
     def send!
       raise "job #{job.backup_id} has no email option" unless job.options['email']
       main_text = body_text # define local variables for closure over Mail.new
-      recipients, header = job.options['email'], "Backup of RDS #{job.rds_id}"
+      recipients, header = job.options['email'], 
+      header = "Backup of RDS #{job.rds_id} (job ID #{job.backup_id})"
       mail = Mail.new do
         from    'rdsbackupservice@mdsol.com'
         to      recipients
