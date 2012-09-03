@@ -77,7 +77,6 @@ module RDSBackup
       begin
         prepare_backup
         update_status "Backing up #{rds_id} from account #{account_name}"
-        send_mail
         create_disconnected_rds
         download_data_from_tmp_rds    # populates @sql_file
         delete_disconnected_rds
