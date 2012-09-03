@@ -28,9 +28,9 @@ module RDSBackup
         msg += "Your backup of database #{job.rds_id} is complete.\n"+
           (job.files.empty? ? "" : "Output is at #{job.files.first[:url]}\n")
       else
-        msg += "Your backup is incomplete: #{job.status}\n"
+        msg += "Your backup is incomplete. (job ID #{job.backup_id})\n"
       end
-      msg += "Job status is at #{job.status_url}"
+      msg += "Job status: #{job.message}"
     end
 
   end
