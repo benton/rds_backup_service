@@ -25,7 +25,6 @@ module RDSBackup
       @status     = 200
       @message    = "queued"
       @files      = []
-      @s3         = RDSBackup.s3
       @config     = RDSBackup.settings
       @bucket     = @config['backup_bucket']
       @s3_path    = (@config['backup_prefix'] ? "#{@config['backup_prefix']}/" : "")+
@@ -51,11 +50,11 @@ module RDSBackup
     # Writes this job's JSON representation to S3
     def write_to_s3
       status_path = "#{@s3_path}/status.json"
-      @s3.put_object(@bucket, status_path, "#{to_json}\n")
+      s3.put_object(@bucket, status_path, "#{to_json}\n")
       unless @status_url
         expire_date = Time.now + (3600 * 24)  # one day from now
-        @status_url = @s3.get_object_http_url(@bucket, status_path, expire_date)
-        @s3.put_object(@bucket, status_path, "#{to_json}\n")
+        @status_url = s3.get_object_http_url(@bucket, status_path, expire_date)
+        s3.put_object(@bucket, status_path, "#{to_json}\n")
       end
     end
 
@@ -216,8 +215,8 @@ module RDSBackup
     def upload_output_to_s3
       update_status "Uploading output file #{::File.basename @sql_file}"
       dump_path = "#{@s3_path}/#{::File.basename @sql_file}"
-      @s3.put_object(@bucket, dump_path, File.read(@sql_file))
-      upload = @s3.directories.get(@bucket).files.get dump_path
+      s3.put_object(@bucket, dump_path, File.read(@sql_file))
+      upload = s3.directories.get(@bucket).files.get dump_path
       @files = [ {
         name: ::File.basename(@sql_file),
         size: upload.content_length,
@@ -234,6 +233,9 @@ module RDSBackup
       @status == 200 ? (@log.info message) : (@log.error message)
       write_to_s3 if @s3
     end
+
+    # lazily initializes and returns S3 connection
+    def s3 ; @s3 ||= RDSBackup.s3 end
 
   end
 end
