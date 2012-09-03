@@ -11,12 +11,12 @@ of a live AWS Relational Database Service instance into a compressed SQL file.
 The service has only one API call (a POST to `/api/v1/backups`), which spawns
 a long-running worker process. The worker performs the following steps:
 
-1. Snapshots the original RDS.
-2. Creates a new RDS instance based on the snapshot.
-3. Configures the new RDS as needed, including rebooting for Parameter Group.
-4. Connects to the RDS and dumps the database contents, compressing on the fly.
-5. Uploads the compressed SQL file to S3, and optionally emails its URL.
-6. Deletes up the snapshot, temporary instance, and local SQL dump.
+1. Snapshots the original RDS
+2. Creates a new RDS instance based on the snapshot
+3. Configures the new RDS as needed, including rebooting for Parameter Group
+4. Connects to the RDS and dumps the database contents, compressing on the fly
+5. Uploads the compressed SQL file to S3, and optionally emails its URL
+6. Deletes up the snapshot, temporary instance, and local SQL dump
 
 ----------------
 Why is it?
@@ -26,18 +26,15 @@ is a pain (if it has no existing slave). Though the steps are simple, they're
 brittle, slow, and involve lots of waiting for indeterminate time periods.
 
 ----------------
-Dependencies
-----------------
-Install these first.
-
-* Ruby 1.9, rake, and bundler
-* Redis (for Resque workers)
-
-----------------
 Installation
 ----------------
-The RDS Backup Service can be used as a standalone application or as a Rack
-middleware library.
+First install the dependencies:
+
+* Ruby 1.9, rake, and bundler
+* [Redis][] (for [Resque][] workers), or [DelayedJob][] (library only for now)
+
+The RDS Backup Service can be installed as a standalone application or as a
+Rack middleware library.
 
 ###   To install as an application  ###
 
@@ -83,10 +80,10 @@ Two configuration files are required _(see included examples)_:
 
   This file defines the S3 bucket name for the output, plus some other options.
 
-Once these files have been edited, run `rake setup:security_groups`, which will:
+Once these files have been edited, run `rake setup:security_groups`, which:
 
-* make sure the configured Security Groups exist in all the RDS and EC2 accounts
-* open the RDS Security Group in each RDS account to the EC2 Security Group
+* makes sure the configured Security Groups exist in all the RDS and EC2 accounts
+* opens the RDS Security Group in each RDS account to the EC2 Security Group
 * checks to see that the current host is in the EC2 Security Group (when in EC2)
 
 ----------------
@@ -102,4 +99,28 @@ The entry point for the REST API is `/api/v1/backups`
 The Resque workers are run with:
 
     QUEUE=backups rake resque:work
+
+
+----------------
+DelayedJob
+----------------
+The library (though not the service) can be used with DelayedJob.
+Place some code like this in your Controller or Model:
+
+    require 'rds_backup_service/tasks'
+    ...
+    job = RDSBackup::Job.new(@stage.rds_name)
+    job.write_to_s3
+    Delayed::Job.enqueue RDSBackup::DelayedJob.new(job.rds_id, {
+        'backup_id' => job.backup_id,
+        'requested' => job.requested.to_s,
+        'email'     => email,
+      })
+
+
+
+Links:
+[Redis]: http://redis.io/
+[Resque]: https://github.com/defunkt/resque
+[DelayedJob]: https://github.com/collectiveidea/delayed_job
 

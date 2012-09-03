@@ -12,11 +12,11 @@ module RDSBackup
 
     # Constructor.
     # @param [String] rds_instance_id the ID of the RDS instance to backup
-    # @param [String] account_name the account key from config/accounts.yml
     # @param [Hash] options optional additional parameters:
-    #  - :backup_id - a unique ID for this job, if necessary
-    #  - :requested - a Time when this job was requested
-    #  - :logger - a Logger object, for printing this job's ongoing status
+    #  - backup_id - a unique ID for this job, if necessary
+    #  - requested - a Time when this job was requested
+    #  - email - an email address to be notified on completion
+    #  - logger - a Logger object, for printing this job's ongoing status
     def initialize(rds_instance_id, options = {})
       @rds_id, @options = rds_instance_id, options
       @backup_id  = options['backup_id'] || "%016x" % (rand * 0xffffffffffffffff)
@@ -71,8 +71,6 @@ module RDSBackup
     end
 
     # Top-level, long-running method for performing the backup.
-    # Builds up the instance state variables: @rds, @original_server,
-    # @snapshot, @new_instance, @new_password, and @sql_file.
     def perform_backup
       begin
         prepare_backup
@@ -145,7 +143,7 @@ module RDSBackup
       end
     end
 
-    # Updates the Master Password and applies the tightened RDS Security Group
+    # Updates the Master Password and applies the configured RDS Security Group
     def configure_tmp_rds
       update_status "Waiting for instance #{@new_instance.id}..."
       @new_instance.wait_for { ready? }
