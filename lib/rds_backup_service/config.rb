@@ -26,7 +26,7 @@ module RDSBackup
       RDSBackup.rds_accounts.each do |account_name, account_data|
         log.info "Checking account #{account_name} for "+
           "RDS Security group #{rds_group_name}"
-        rds = ::Fog::AWS::RDS.new(account_data['credentials'])
+        rds = ::Fog::AWS::RDS.new(account_data[:credentials])
         rds_group = rds.security_groups.get rds_group_name
         unless rds_group
           log.info "Creating security group #{rds_group_name} in #{account_name}"

@@ -9,29 +9,31 @@ module RDSBackup
   # Loads account information defined in config/accounts.yml, or
   # ENV['RDS_ACCOUNTS_FILE'].
   # @param account_file the path to a YAML file (see accounts.yml.example).
-  # @return [Array<Hash>] an Array of Hashes representing the account info.
+  # @return [Hash] a Hash representing the account info.
+  # The keys in each account Hash are converted to Symbols.
   def self.read_accounts(account_file = ENV['RDS_ACCOUNTS_FILE'])
-    YAML::load(File.read(account_file || "./config/accounts.yml"))
+    YAML::load(File.read(account_file || "./config/accounts.yml")).
+      inject({}) {|a,b| a[b[0]] = b[1].symbolize_keys ; a }
   end
 
   # Loads account information defined in account_file, and returns only those
   # entries that repesent RDS accounts.
   def self.rds_accounts
-    RDSBackup.read_accounts.select{|id,acc| acc['service'] == 'RDS'}
+    RDSBackup.read_accounts.select{|id,acc| acc[:service] == 'RDS'}
   end
 
   # Returns a new connection to the AWS EC2 service (Fog::Compute::AWS)
   def self.ec2
-    accts = RDSBackup.read_accounts.select{|id,acc| acc['service'] == 'Compute'}
+    accts = RDSBackup.read_accounts.select{|id,acc| acc[:service] == 'Compute'}
     raise "At least one S3 account must be defined" if accts.empty?
-    Fog::Compute::AWS.new(accts.first[1]['credentials'])
+    Fog::Compute::AWS.new(accts.first[1][:credentials])
   end
 
   # Returns a new connection to the AWS S3 service (Fog::Storage::AWS)
   def self.s3
-    accts = RDSBackup.read_accounts.select{|id,acc| acc['service'] == 'Storage'}
+    accts = RDSBackup.read_accounts.select{|id,acc| acc[:service] == 'Storage'}
     raise "At least one S3 account must be defined" if accts.empty?
-    Fog::Storage::AWS.new(accts.first[1]['credentials'])
+    Fog::Storage::AWS.new(accts.first[1][:credentials])
   end
 
   # Returns the configuration Hash read from config/s3_account.yml

@@ -108,7 +108,7 @@ module RDSBackup
       end
       @account_name = @original_server.tracker_account[:name]
       @rds = ::Fog::AWS::RDS.new(
-        RDSBackup.rds_accounts[@account_name]['credentials'])
+        RDSBackup.rds_accounts[@account_name][:credentials])
       @snapshot         = @rds.snapshots.get @snapshot_id
       @new_instance     = @rds.servers.get @new_rds_id
     end
