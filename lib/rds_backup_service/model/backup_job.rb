@@ -21,7 +21,6 @@ module RDSBackup
       @rds_id, @options = rds_instance_id, options
       @backup_id  = options['backup_id'] || "%016x" % (rand * 0xffffffffffffffff)
       @requested  = options['requested'] ? Time.parse(options['requested']) : Time.now
-      @log        = options['logger'] || RDSBackup.default_logger(STDOUT)
       @status     = 200
       @message    = "queued"
       @files      = []
@@ -228,10 +227,11 @@ module RDSBackup
 
     # Writes a new status message to the log, and writes the job info to S3
     def update_status(message, new_status = nil)
+      @log      = @options['logger'] || RDSBackup.default_logger(STDOUT)
       @message  = message
       @status   = new_status if new_status
       @status == 200 ? (@log.info message) : (@log.error message)
-      write_to_s3 if @s3
+      write_to_s3
     end
 
     # lazily initializes and returns S3 connection
