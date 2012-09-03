@@ -9,6 +9,7 @@ end
 
 require 'rds_backup_service'
 require 'resque/tasks'
+ENV['TERM_CHILD'] = '1'
 
 # Load all tasks from 'lib/tasks'
 Dir["#{File.dirname(__FILE__)}/lib/tasks/*.rake"].sort.each {|ext| load ext}
