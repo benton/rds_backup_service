@@ -29,6 +29,7 @@ Gem::Specification.new do |s|
   s.add_dependency "sinatra"
   s.add_dependency "fog_tracker", ">=0.4.0"
   s.add_dependency "resque"
+  s.add_dependency "mail"
   s.add_dependency "ohai"
 
   # Development / Test dependencies
