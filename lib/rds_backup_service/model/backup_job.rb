@@ -239,8 +239,10 @@ module RDSBackup
 
     # Sends a status email
     def send_mail
+      return unless @options['email']
+      @log.info "Emailing #{@options['email']}..."
       begin
-        Email.new(self).send! if @options['email']
+        RDSBackup::Email.new(self).send!
       rescue Exception => e
         @log.warn "Error sending email: #{e.message.split("\n").first}"
       end
