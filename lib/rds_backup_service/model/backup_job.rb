@@ -65,9 +65,10 @@ module RDSBackup
       job = Job.new(rds_instance_id, options)
       begin
         job.perform_backup
-      rescue Exception => e
-        job.update_status "ERROR: #{e.message.split("\n").first}", 500
-        raise e
+      rescue Resque::TermException => e
+        ::Resque.enqueue_to(:backups, Job, rds_instance_id,
+          options.merge(backup_id: job.backup_id, requested: job.requested.to_s))
+        job.update_status "Terminated on interrupt signal - requeued"
       end
     end
 
@@ -75,12 +76,17 @@ module RDSBackup
     # Builds up the instance state variables: @rds, @original_server,
     # @snapshot, @new_instance, @new_password, and @sql_file.
     def perform_backup
-      update_status "Backing up #{rds_id} from account #{account_name}"
-      create_disconnected_rds
-      download_data_from_tmp_rds    # populates @sql_file
-      delete_disconnected_rds
-      upload_output_to_s3
-      update_status "Backup of #{rds_id} complete"
+      begin
+        update_status "Backing up #{rds_id} from account #{account_name}"
+        create_disconnected_rds
+        download_data_from_tmp_rds    # populates @sql_file
+        delete_disconnected_rds
+        upload_output_to_s3
+        update_status "Backup of #{rds_id} complete"
+      rescue Exception => e
+        update_status "ERROR: #{e.message.split("\n").first}", 500
+        raise e
+      end
     end
 
     # Step 1 of the overall process - create a disconnected copy of the RDS
