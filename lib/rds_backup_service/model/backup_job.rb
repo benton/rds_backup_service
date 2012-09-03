@@ -75,12 +75,15 @@ module RDSBackup
     # @snapshot, @new_instance, @new_password, and @sql_file.
     def perform_backup
       begin
+        prepare_backup
         update_status "Backing up #{rds_id} from account #{account_name}"
+        send_mail
         create_disconnected_rds
         download_data_from_tmp_rds    # populates @sql_file
         delete_disconnected_rds
         upload_output_to_s3
         update_status "Backup of #{rds_id} complete"
+        send_mail
       rescue Exception => e
         update_status "ERROR: #{e.message.split("\n").first}", 500
         raise e
@@ -90,7 +93,7 @@ module RDSBackup
     # Step 1 of the overall process - create a disconnected copy of the RDS
     def create_disconnected_rds(new_rds_name = nil)
       @new_rds_id = new_rds_name if new_rds_name
-      prepare_backup
+      prepare_backup unless @original_server  # in case run as a convenience method
       snapshot_original_rds
       create_tmp_rds_from_snapshot
       configure_tmp_rds
@@ -232,6 +235,15 @@ module RDSBackup
       @status   = new_status if new_status
       @status == 200 ? (@log.info message) : (@log.error message)
       write_to_s3
+    end
+
+    # Sends a status email
+    def send_mail
+      begin
+        Email.new(self).send! if @options['email']
+      rescue Exception => e
+        @log.warn "Error sending email: #{e.message.split("\n").first}"
+      end
     end
 
     # lazily initializes and returns S3 connection
