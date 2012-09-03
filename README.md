@@ -1,79 +1,105 @@
-RDS Dump Service 
+RDS Backup Service
 ================
-Fire-and-forget backups of Amazon Web Services' RDS databases into S3.
+Fire-and-forget SQL backups of Amazon Web Services' RDS databases into S3.
 
 ----------------
 What is it?
 ----------------
-A REST-style web service for safely dumping contents of a live AWS 
-Relational Database Service instance into a compressed SQL file.
+A REST-style web service and middleware library for safely dumping the contents
+of a live AWS Relational Database Service instance into a compressed SQL file.
+
+The service has only one API call (a POST to `/api/v1/backups`), which spawns
+a long-running worker process. The worker performs the following steps:
+
+1. Snapshots the original RDS.
+2. Creates a new RDS instance based on the snapshot.
+3. Configures the new RDS as needed, including rebooting for Parameter Group.
+4. Connects to the RDS and dumps the database contents, compressing on the fly.
+5. Uploads the compressed SQL file to S3, and optionally emails its URL.
+6. Deletes up the snapshot, temporary instance, and local SQL dump.
 
 ----------------
 Why is it?
 ----------------
+Safely and consistently grabbing the contents of a loaded, live RDS instance
+is a pain (if it has no existing slave). Though the steps are simple, they're
+brittle, slow, and involve lots of waiting for indeterminate time periods.
 
+----------------
+Dependencies
+----------------
+Install these first.
+
+* Ruby 1.9, rake, and bundler
+* Redis (for Resque workers)
 
 ----------------
 Installation
 ----------------
-The RDS Dump Service can be used as a standalone application or as a Rack 
+The RDS Backup Service can be used as a standalone application or as a Rack
 middleware library.
 
 ###   To install as an application  ###
 
-Install project dependencies, fetch the code, and 
+Install project dependencies, fetch the code, and bundle up.
 
     gem install rake bundler
-    git clone https://github.com/benton/cloud_financial_officer.git
+    git clone https://github.com/benton/rds_backup_service.git
     cd rds_backup_service
     bundle
 
 ###   To install as a library   ###
 
-  1) Install the gem, or add it as a Bundler dependency and `bundle`.
+1) Install the gem, or add it as a Bundler dependency and `bundle`.
 
-        gem install rds_backup_service
+      gem install rds_backup_service
 
-  2) Require the middleware from your Rack application, then insert it
-    in the stack:
+2) Require the middleware from your Rack application, then insert it
+  in the stack:
 
-        require 'rds_backup_service'
-        ...
-        config.middleware.use RDSBackup::Service  # (Rails application.rb)
-                                                  # or
-        use RDSBackup::Service                    # (Sinatra)
+      require 'rds_backup_service'
+      ...
+      config.middleware.use RDSBackup::Service  # (Rails application.rb)
+                                                # or
+      use RDSBackup::Service                    # (Sinatra)
 
+3) If desired, require the SecurityGroup setup task in your `Rakefile`:
+
+      require 'rds_backup_service/tasks'
+
+----------------
+Configuration and Setup
+----------------
+Two configuration files are required _(see included examples)_:
+
+* `./config/accounts.yml` or `ENV['RDS_ACCOUNTS_FILE']`
+
+  This file defines three different types of AWS accounts: the various RDS
+  accounts to grab SQL from; the S3 account where the SQL output
+  will be written; and an optional EC2 account, which is used by the
+  `setup:security_groups` rake task to perform post-configuration setup.
+
+* `./config/settings.yml` or `ENV['RDS_SETTINGS_FILE']`
+
+  This file defines the S3 bucket name for the output, plus some other options.
+
+Once these files have been edited, run `rake setup:security_groups`, which will:
+
+* make sure the configured Security Groups exist in all the RDS and EC2 accounts
+* open the RDS Security Group in each RDS account to the EC2 Security Group
+* checks to see that the current host is in the EC2 Security Group (when in EC2)
 
 ----------------
 Usage
 ----------------
-The service is run with:
+The service is run in the standard Rack manner:
 
-      rake service
-or
-
-      bundle exec rackup
+    bundle exec rackup
 
 The entry point for the REST API is `/api/v1/backups`
 (See the {file:API.md API documentation})
 
+The Resque workers are run with:
 
-----------------
-Development
-----------------
-
-*Getting started with development*
-
-1) Install project dependencies
-
-    gem install rake bundler
-
-2) Fetch the project code
-
-    git clone https://github.com/benton/rds_backup_service.git
-    cd rds_backup_service
-
-3) Bundle up and run the tests
-
-    bundle && rake
+    QUEUE=backups rake resque:work
 
