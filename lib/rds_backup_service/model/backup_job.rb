@@ -12,13 +12,13 @@ module RDSBackup
 
     # Constructor.
     # @param [String] rds_instance_id the ID of the RDS instance to backup
-    # @param [Hash] options optional additional parameters:
-    #  - backup_id - a unique ID for this job, if necessary
-    #  - requested - a Time when this job was requested
-    #  - email - an email address to be notified on completion
-    #  - logger - a Logger object, for printing this job's ongoing status
-    def initialize(rds_instance_id, options = {})
-      @rds_id, @options = rds_instance_id, options
+    # @param [Hash] optional_params optional additional parameters:
+    #  - :email - an email address to be notified on completion
+    #  - :backup_id - a unique ID for this job, if necessary
+    #  - :requested - a Time when this job was requested
+    #  - :logger - a Logger object, for printing this job's ongoing status
+    def initialize(rds_instance_id, optional_params = {})
+      @rds_id, @options = rds_instance_id, optional_params.symbolize_keys
       @backup_id  = options[:backup_id] || "%016x" % (rand * 0xffffffffffffffff)
       @requested  = options[:requested] ? Time.parse(options[:requested]) : Time.now
       @status     = 200
@@ -227,7 +227,7 @@ module RDSBackup
 
     # Writes a new status message to the log, and writes the job info to S3
     def update_status(message, new_status = nil)
-      @log      = @options['logger'] || RDSBackup.default_logger(STDOUT)
+      @log      = @options[:logger] || RDSBackup.default_logger(STDOUT)
       @message  = message
       @status   = new_status if new_status
       @status == 200 ? (@log.info message) : (@log.error message)
@@ -236,8 +236,8 @@ module RDSBackup
 
     # Sends a status email
     def send_mail
-      return unless @options['email']
-      @log.info "Emailing #{@options['email']}..."
+      return unless @options[:email]
+      @log.info "Emailing #{@options[:email]}..."
       begin
         RDSBackup::Email.new(self).send!
       rescue Exception => e
