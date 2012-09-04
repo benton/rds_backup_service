@@ -74,13 +74,13 @@ Two configuration files are required _(see included examples)_:
   This file defines three different types of AWS accounts: the various RDS
   accounts to grab SQL from; the S3 account where the SQL output
   will be written; and an optional EC2 account, which is used by the
-  `setup:security_groups` rake task to perform post-configuration setup.
+  `setup:rds_backup_groups` rake task to perform post-configuration setup.
 
 * `./config/settings.yml` or `ENV['RDS_SETTINGS_FILE']`
 
   This file defines the S3 bucket name for the output, plus some other options.
 
-Once these files have been edited, run `rake setup:security_groups`, which:
+Once these files have been edited, run `rake setup:rds_backup_groups`, which:
 
 * makes sure the configured Security Groups exist in all the RDS and EC2 accounts
 * opens the RDS Security Group in each RDS account to the EC2 Security Group
