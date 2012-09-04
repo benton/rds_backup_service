@@ -114,9 +114,9 @@ Place some code like this in your Controller or Model:
     job = RDSBackup::Job.new(params[:rds_id])
     job.write_to_s3
     Delayed::Job.enqueue RDSBackup::DelayedJob.new(job.rds_id, {
-        'backup_id' => job.backup_id,
-        'requested' => job.requested.to_s,
-        'email'     => params[:email],
+        backup_id: job.backup_id,
+        requested: job.requested.to_s,
+        email:     params[:email],
       })
 
 
