@@ -44,6 +44,7 @@ module RDSBackup
       'ec2_security_group'  => 'rds-backup-service',
       'tmp_dir'             => Dir.tmpdir,
       'email_from'          => 'rdsbackups@localhost',
+      'email_tls'           => 'false',
     }.merge(YAML::load(
       File.read(settings_file || "./config/settings.yml")))
   end

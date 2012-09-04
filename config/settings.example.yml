@@ -29,3 +29,8 @@ backup_bucket: rdsbackups
 # defaults to rdsbackups@localhost
 
 #email_from: "rdsbackups@localhost"
+
+# Use TLS when sending email over ESMTP?
+# defaults to false
+
+#email_tls: false
