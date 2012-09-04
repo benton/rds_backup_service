@@ -32,6 +32,8 @@ First install the dependencies:
 
 * Ruby 1.9, rake, and bundler
 * [Redis][] (for [Resque][] workers), or [DelayedJob][] (library only for now)
+* mysqldump
+* gzip
 
 The RDS Backup Service can be installed as a standalone application or as a
 Rack middleware library.
