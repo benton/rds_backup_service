@@ -107,14 +107,14 @@ DelayedJob
 The library (though not the service) can be used with DelayedJob.
 Place some code like this in your Controller or Model:
 
-    require 'rds_backup_service/tasks'
+    require 'rds_backup_service'
     ...
-    job = RDSBackup::Job.new(@stage.rds_name)
+    job = RDSBackup::Job.new(params[:rds_id])
     job.write_to_s3
     Delayed::Job.enqueue RDSBackup::DelayedJob.new(job.rds_id, {
         'backup_id' => job.backup_id,
         'requested' => job.requested.to_s,
-        'email'     => email,
+        'email'     => params[:email],
       })
 
 

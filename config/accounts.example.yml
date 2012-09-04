@@ -6,9 +6,9 @@ s3account-name:
   provider: AWS
   service: Storage
 
-# This service should run in EC2 account. 
+# This service should run in an EC2 account.
 # The creds here are used only for automated SecurityGroup setup.
-# If you don't run 'rake setup:groups' or RDSBackup::Config.setup_security_groups,
+# If you don't run 'rake setup:rds_backup_groups',
 # then these won't be used -- but one-time EC2 setup must be done manually.
 ec2-account-for-service:
   credentials:
