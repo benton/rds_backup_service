@@ -9,7 +9,9 @@ module RDSBackup
     def initialize(backup_job)
       @job, @settings = backup_job, RDSBackup.settings
       use_tls = settings['email_tls'] != 'false'
-      Mail.defaults {delivery_method (:smtp, enable_starttls_auto: use_tls)}
+      Mail.defaults do
+        delivery_method :smtp, {enable_starttls_auto: use_tls}
+      end
     end
 
     # Attempts to send email through local ESMTP port 25.
