@@ -3,31 +3,38 @@ module RDSBackup
   # an email representation of a Job, that can send itself to recipients.
   class Email
 
-    attr_reader :job
+    attr_reader :job, :settings
+
+    Mail.defaults do
+      delivery_method :smtp,
+        {enable_starttls_auto: (RDSBackup.settings['email_tls'] != 'false')}
+    end
 
     # constructor - requires an RDSBackup::Job
     def initialize(backup_job)
-      @job = backup_job
+      @job, @settings = backup_job, RDSBackup.settings
     end
 
     # Attempts to send email through local ESMTP port 25.
     # Raises an Exception on failure.
     def send!
       raise "job #{job.backup_id} has no email option" unless job.options[:email]
-      main_text = body_text # define local variables for closure over Mail.new
-      recipients = job.options[:email]
-      header = "Backup of RDS #{job.rds_id} (job ID #{job.backup_id})"
+      # define local variables for closure over Mail.new
+      from_address  = settings['email_from']
+      to_address    = job.options[:email]
+      subject_text  = "Backup of RDS #{job.rds_id} (job ID #{job.backup_id})"
+      body_text     = body
       mail = Mail.new do
-        from    'rdsbackupservice@mdsol.com'
-        to      recipients
-        subject header
-        body    "#{main_text}\n"
+        from    from_address
+        to      to_address
+        subject subject_text
+        body    "#{body_text}\n"
       end
       mail.deliver!
     end
 
     # defines the body of a Job's status email
-    def body_text
+    def body
       msg = "Hello.\n\n"
       if job.status == 200
         msg += "Your backup of database #{job.rds_id} is complete.\n"+

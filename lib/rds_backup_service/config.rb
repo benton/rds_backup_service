@@ -1,3 +1,4 @@
+require 'fileutils'
 module RDSBackup
   # models logic for post-configuration setup
   module Config
@@ -9,6 +10,7 @@ module RDSBackup
       # Configuration
       log.info "Scanning system..."
       (system = Ohai::System.new).all_plugins
+      FileUtils.rm_f("1")
       log.info "Reading config files..."
       settings = RDSBackup.settings
       ec2_group_name = settings['ec2_security_group']

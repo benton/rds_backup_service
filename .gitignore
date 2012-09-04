@@ -1,6 +1,7 @@
 *.gem
 .bundle
 config/accounts.yml
+config/settings.yml
 pkg/*
 *~
 .DS_Store
