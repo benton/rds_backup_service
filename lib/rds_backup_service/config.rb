@@ -54,7 +54,9 @@ module RDSBackup
         log.warn "Not running in EC2 - open RDS groups to this host!"
       else
         unless this_host = ec2.servers.get(system[:ec2][:instance_id])
-          log.warn "Not running in EC2 account #{s3_acc_name}!"
+          accts = RDSBackup.read_accounts.select{|id,acc| acc[:service] == 'Compute'}
+          raise "At least one S3 account must be defined" if accts.empty?
+          log.warn "Not running in EC2 account #{accts.first[0]}!"
         else
           log.info "Running in EC2. Current Security Groups = #{this_host.groups}"
           unless this_host.groups.include? ec2_group_name
