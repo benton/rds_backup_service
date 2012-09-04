@@ -24,3 +24,8 @@ backup_bucket: rdsbackups
 # defaults to Ruby's Dir.tmpdir
 
 #tmp_dir: "/tmp"
+
+# The "From" address in sent emails
+# defaults to rdsbackups@localhost
+
+#email_from: "rdsbackups@localhost"

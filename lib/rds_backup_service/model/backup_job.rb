@@ -240,6 +240,7 @@ module RDSBackup
       @log.info "Emailing #{@options[:email]}..."
       begin
         RDSBackup::Email.new(self).send!
+        @log.info "Email sent to #{@options[:email]} for job #{backup_id}"
       rescue Exception => e
         @log.warn "Error sending email: #{e.message.split("\n").first}"
       end
