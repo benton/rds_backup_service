@@ -46,7 +46,7 @@ module RDSBackup
       logger.info "Queuing backup of RDS #{rds_id} in account #{job.account_name}"
       job.write_to_s3
       ::Resque.enqueue_to(:backups, Job, job.rds_id, job.options.
-        merge({'backup_id' => job.backup_id, 'requested' => job.requested.to_s}))
+        merge({backup_id: job.backup_id, requested: job.requested.to_s}))
 
       [ 201,                                # return HTTP_CREATED, and
         { 'Location' => job.status_url },   # point to the S3 document

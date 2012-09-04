@@ -19,8 +19,8 @@ module RDSBackup
     #  - logger - a Logger object, for printing this job's ongoing status
     def initialize(rds_instance_id, options = {})
       @rds_id, @options = rds_instance_id, options
-      @backup_id  = options['backup_id'] || "%016x" % (rand * 0xffffffffffffffff)
-      @requested  = options['requested'] ? Time.parse(options['requested']) : Time.now
+      @backup_id  = options[:backup_id] || "%016x" % (rand * 0xffffffffffffffff)
+      @requested  = options[:requested] ? Time.parse(options[:requested]) : Time.now
       @status     = 200
       @message    = "queued"
       @files      = []
@@ -31,7 +31,7 @@ module RDSBackup
       @snapshot_id  = "rds-backup-service-#{rds_id}-#{backup_id}"
       @new_rds_id   = "rds-backup-service-#{backup_id}"
       @new_password = "#{backup_id}"
-      @account_name = options['account_name']
+      @account_name = options[:account_name]
     end
 
     # returns a JSON-format String representation of this backup job
