@@ -119,7 +119,6 @@ Place some code like this in your Controller or Model:
 
 
 
-Links:
 [Redis]: http://redis.io/
 [Resque]: https://github.com/defunkt/resque
 [DelayedJob]: https://github.com/collectiveidea/delayed_job

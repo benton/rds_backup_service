@@ -16,7 +16,7 @@ module RDSBackup
       inject({}) {|a,b| a[b[0]] = b[1].symbolize_keys ; a }
   end
 
-  # Loads account information defined in account_file, and returns only those
+  # Loads account information, and returns only those
   # entries that repesent RDS accounts.
   def self.rds_accounts
     RDSBackup.read_accounts.select{|id,acc| acc[:service] == 'RDS'}

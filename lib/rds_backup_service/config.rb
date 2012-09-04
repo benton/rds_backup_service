@@ -1,4 +1,5 @@
 module RDSBackup
+  # models logic for post-configuration setup
   module Config
 
     # Attempts to set up the EC2 and RDS security groups as specified in the

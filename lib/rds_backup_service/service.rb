@@ -6,6 +6,7 @@ require 'resque'
 
 module RDSBackup
   # A RESTful web service for backing up RDS databases to S3.
+  # See the README for running this Rack-compliant service.
   class Service < Sinatra::Base
 
     # configure logging when not in test mode
