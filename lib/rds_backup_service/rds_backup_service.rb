@@ -67,6 +67,7 @@ module RDSBackup
   # @param [String] the name of the desired RDS entity
   # @return [Fog::AWS::RDS::Server] the RDS instance, or nil if not found
   def self.get_rds(rds_id)
+    require 'fog_tracker'
     ::FogTracker::Tracker.new(RDSBackup.rds_accounts).update.
       select{|rds| rds.identity == rds_id}.first
   end

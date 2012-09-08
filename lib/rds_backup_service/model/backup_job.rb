@@ -1,6 +1,6 @@
-require 'fog_tracker'
 require 'fileutils'
 require 'json'
+require 'fog'
 module RDSBackup
   # Backs up the contents of a single RDS database to S3
   class Job
