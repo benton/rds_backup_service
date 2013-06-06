@@ -31,6 +31,8 @@ Gem::Specification.new do |s|
   s.add_dependency "resque"
   s.add_dependency "mail"
   s.add_dependency "ohai"
+  s.add_dependency "erubis"
+  s.add_dependency "tilt"
 
   # Development / Test dependencies
   s.add_development_dependency "rake"

@@ -2,63 +2,64 @@ PATH
   remote: .
   specs:
     rds_backup_service (0.0.3)
+      erubis
       fog_tracker (>= 0.4.0)
       mail
       ohai
       resque
       sinatra
+      tilt
 
 GEM
   remote: http://rubygems.org/
   specs:
-    activesupport (3.2.6)
-      i18n (~> 0.6)
-      multi_json (~> 1.0)
-    builder (3.0.0)
+    builder (3.2.2)
     daemon_controller (1.1.0)
     diff-lcs (1.1.3)
-    excon (0.16.2)
+    erubis (2.7.0)
+    excon (0.20.1)
     fastthread (1.0.7)
-    fog (1.5.0)
+    fog (1.10.0)
       builder
       excon (~> 0.14)
       formatador (~> 0.2.0)
       mime-types
       multi_json (~> 1.0)
-      net-scp (~> 1.0.4)
+      net-scp (~> 1.1)
       net-ssh (>= 2.1.3)
       nokogiri (~> 1.5.0)
       ruby-hmac
     fog_tracker (0.4.0)
       fog (>= 1)
-    formatador (0.2.3)
+    formatador (0.2.4)
     guard (1.3.2)
       listen (>= 0.4.2)
       thor (>= 0.14.6)
     guard-rspec (1.2.1)
       guard (>= 1.1)
-    i18n (0.6.0)
+    i18n (0.6.1)
     ipaddress (0.8.0)
     listen (0.5.0)
-    mail (2.2.19)
-      activesupport (>= 2.3.6)
+    mail (2.5.3)
       i18n (>= 0.4.0)
       mime-types (~> 1.16)
       treetop (~> 1.4.8)
-    mime-types (1.19)
-    mixlib-cli (1.2.2)
+    mime-types (1.23)
+    mixlib-cli (1.3.0)
     mixlib-config (1.1.2)
-    mixlib-log (1.4.1)
-    multi_json (1.3.6)
-    net-scp (1.0.4)
-      net-ssh (>= 1.99.1)
-    net-ssh (2.5.2)
-    nokogiri (1.5.5)
-    ohai (6.14.0)
+    mixlib-log (1.6.0)
+    mixlib-shellout (1.1.0)
+    multi_json (1.7.6)
+    net-scp (1.1.1)
+      net-ssh (>= 2.6.5)
+    net-ssh (2.6.7)
+    nokogiri (1.5.9)
+    ohai (6.16.0)
       ipaddress
       mixlib-cli
       mixlib-config
       mixlib-log
+      mixlib-shellout
       systemu
       yajl-ruby
     passenger (3.0.19)
@@ -68,7 +69,7 @@ GEM
       rake (>= 0.8.1)
     polyglot (0.3.3)
     rack (1.4.1)
-    rack-protection (1.2.0)
+    rack-protection (1.3.2)
       rack
     rake (0.9.2.2)
     redis (3.0.1)
@@ -89,14 +90,14 @@ GEM
     rspec-mocks (2.11.2)
     ruby-hmac (0.4.0)
     ruby_gntp (0.3.4)
-    sinatra (1.3.3)
-      rack (~> 1.3, >= 1.3.6)
-      rack-protection (~> 1.2)
+    sinatra (1.3.4)
+      rack (~> 1.4)
+      rack-protection (~> 1.3)
       tilt (~> 1.3, >= 1.3.3)
     systemu (2.5.2)
     thor (0.16.0)
-    tilt (1.3.3)
-    treetop (1.4.10)
+    tilt (1.3.6)
+    treetop (1.4.14)
       polyglot
       polyglot (>= 0.3.1)
     vegas (0.1.11)
