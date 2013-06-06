@@ -1,0 +1,33 @@
+# The S3 account is used to store all job output.
+s3account-name:
+  credentials:
+    aws_access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'] || 'XXX' %>
+    aws_secret_access_key: <%= ENV['AWS_ACCESS_KEY_SECRET'] || 'XXX' %>
+  provider: AWS
+  service: Storage
+
+# This service should run in an EC2 account.
+# The creds here are used only for automated SecurityGroup setup.
+# If you don't run 'rake setup:rds_backup_groups',
+# then these won't be used -- but one-time EC2 setup must be done manually.
+ec2-account-for-service:
+  credentials:
+    aws_access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'] || 'XXX' %>
+    aws_secret_access_key: <%= ENV['AWS_ACCESS_KEY_SECRET'] || 'XXX' %>
+  provider: AWS
+  service: Compute
+
+# The RDS instances in all the RDS accounts are avaliable for backup.
+
+rds-development:
+  credentials:
+    aws_access_key_id: <%= ENV['AWS_ACCESS_KEY_ID'] || 'XXX' %>
+    aws_secret_access_key: <%= ENV['AWS_ACCESS_KEY_SECRET'] || 'XXX' %>
+  delay: <%= ENV['RDS_POLLING_DELAY'] || 120 %>
+  provider: AWS
+  service: RDS
+  exclude_resources:
+  - parameters
+  - security_groups
+  - parameter_groups
+  - snapshots

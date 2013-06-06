@@ -1,7 +1,7 @@
 *.gem
 .bundle
-config/accounts.yml
-config/settings.yml
+config/*.yml
+config/nginx.conf
 pkg/*
 *~
 .DS_Store
