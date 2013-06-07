@@ -4,10 +4,9 @@ task :deploy do
   require 'erubis'
   require 'tilt'
 
-  ENV['APP_DIR'] = Pathname.new("#{File.dirname(__FILE__)}/../..").cleanpath.to_s
-  ENV['RUBY'] = File.join(Config::CONFIG['bindir'],
-    Config::CONFIG['ruby_install_name']).
-    sub(/.*\s.*/m, '"\&"')
+  ENV['APP_DIR']  ||= Pathname.new("#{File.dirname(__FILE__)}/../..").cleanpath.to_s
+  ENV['RUBY']     ||= File.join(Config::CONFIG['bindir'],
+                  Config::CONFIG['ruby_install_name']).sub(/.*\s.*/m, '"\&"')
 
   Dir["#{File.dirname(__FILE__)}/../../config/*.erb"].each do |infile|
     puts "Rendering #{File.basename infile}..."

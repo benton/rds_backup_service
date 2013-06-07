@@ -1,0 +1,24 @@
+worker_processes  <%= ENV['HTTP_WORKER_COUNT'] || 2 %>;
+events {
+    worker_connections  <%= ENV['HTTP_WORKER_CONNECTIONS'] || 1024 %>;
+}
+
+http {
+    passenger_root <%= Gem::Specification.find_by_name("passenger").gem_dir %>;
+    passenger_ruby <%= ENV['RUBY'] %>;
+
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    #tcp_nopush     on;
+    keepalive_timeout  65;
+
+    server {
+        listen              <%= ENV['HTTP_PORT'] || 3000 %> default_server;
+        server_name         _;
+        root                <%= ENV['RELEASE_DIR'] || ENV['APP_DIR'] %>/public;
+        passenger_enabled   on;
+    }
+
+}
