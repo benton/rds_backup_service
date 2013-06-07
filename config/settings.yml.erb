@@ -1,5 +1,5 @@
 # REQUIRED - The S3 bucket name where all backups will be saved
-backup_bucket: rdsbackups
+backup_bucket: <%= ENV['BACKUP_BUCKET'] || 'rdsbackups' %>
 
 # Backups can be prefixed with backup_prefix if desired.
 # (Do not include a leading or trailing /)
